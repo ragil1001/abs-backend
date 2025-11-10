@@ -40,7 +40,7 @@ class DebugImport extends Command
             $this->info("Total rows in Excel: " . $rows->count());
             $this->newLine();
 
-            // Show first 10 rows
+            
             $this->info('First 10 rows:');
             foreach ($rows->take(10) as $index => $row) {
                 $this->line("Row {$index}: " . json_encode($row->toArray(), JSON_UNESCAPED_UNICODE));
@@ -48,7 +48,7 @@ class DebugImport extends Command
             
             $this->newLine();
             
-            // Show row 3 (header) and row 4 (first data)
+            
             if ($rows->count() >= 4) {
                 $this->info('=== HEADER ROW (Index 2) ===');
                 $headerRow = $rows->get(2);
@@ -71,7 +71,7 @@ class DebugImport extends Command
                 
                 $this->newLine();
                 
-                // Check NIK specifically (Column B = Index 1)
+                
                 $this->info('=== NIK ANALYSIS (Column B/Index 1) ===');
                 $nikSamples = [];
                 foreach ($rows->skip(3)->take(5) as $index => $row) {
@@ -91,7 +91,7 @@ class DebugImport extends Command
                 
                 $this->newLine();
                 
-                // Count valid rows (rows with NIK)
+                
                 $validRows = $rows->skip(3)->filter(function($row) {
                     return !empty($row[1] ?? null);
                 });
@@ -105,7 +105,7 @@ class DebugImport extends Command
                     $this->line('2. Data starts from a different row');
                     $this->line('3. NIK column is empty or formatted differently');
                     
-                    // Try to find NIK column
+                    
                     $this->newLine();
                     $this->info('Searching for NIK in first data row...');
                     $firstDataRow = $rows->get(3);

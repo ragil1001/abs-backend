@@ -12,21 +12,19 @@ use App\Exports\ProjectExport;
 
 class ProjectController extends Controller
 {
-    /**
-     * Get all projects with shifts
-     */
+    
     public function index(Request $request)
     {
         try {
-            // ✅ FIXED: Remove getExcludedJabatansAttribute from with() - it's an accessor
+            
             $query = Project::with(['shiftProjects']);
 
-            // Filter by status
+            
             if ($request->filled('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
 
-            // Search
+            
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
@@ -36,25 +34,25 @@ class ProjectController extends Controller
                 });
             }
 
-            // Sorting
+            
             $sortField = $request->input('sort_field', 'id');
             $sortDirection = $request->input('sort_direction', 'desc');
             $query->orderBy($sortField, $sortDirection);
 
             $projects = $query->get();
 
-            // ✅ Transform data - excluded_jabatans will be auto-included from $appends
+            
             $projects = $projects->map(function($project) {
                 $projectData = $project->toArray();
                 
-                // Format shifts with HH:mm time only
+                
                 if ($project->shiftProjects) {
                     $projectData['shifts'] = $project->shiftProjects->map(function($shift) {
                         return [
                             'id' => $shift->id,
                             'kode' => $shift->kode,
-                            'waktu_mulai' => substr($shift->waktu_mulai, 0, 5), // HH:mm only
-                            'waktu_selesai' => substr($shift->waktu_selesai, 0, 5), // HH:mm only
+                            'waktu_mulai' => substr($shift->waktu_mulai, 0, 5), 
+                            'waktu_selesai' => substr($shift->waktu_selesai, 0, 5), 
                         ];
                     })->toArray();
                 }
@@ -68,9 +66,9 @@ class ProjectController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get projects error: ' . $e->getMessage(), [
-            //     'trace' => $e->getTraceAsString()
-            // ]);
+            
+            
+            
             
             return response()->json([
                 'success' => false,
@@ -79,25 +77,23 @@ class ProjectController extends Controller
         }
     }
 
-    /**
-     * Get single project with shifts
-     */
+    
     public function show($id)
     {
         try {
-            // ✅ FIXED: Remove getExcludedJabatansAttribute from with()
+            
             $project = Project::with(['shiftProjects'])->findOrFail($id);
             
             $projectData = $project->toArray();
             
-            // Format shifts with HH:mm time only
+            
             if ($project->shiftProjects) {
                 $projectData['shifts'] = $project->shiftProjects->map(function($shift) {
                     return [
                         'id' => $shift->id,
                         'kode' => $shift->kode,
-                        'waktu_mulai' => substr($shift->waktu_mulai, 0, 5), // HH:mm only
-                        'waktu_selesai' => substr($shift->waktu_selesai, 0, 5), // HH:mm only
+                        'waktu_mulai' => substr($shift->waktu_mulai, 0, 5), 
+                        'waktu_selesai' => substr($shift->waktu_selesai, 0, 5), 
                     ];
                 })->toArray();
             }
@@ -108,7 +104,7 @@ class ProjectController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get project error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -117,9 +113,7 @@ class ProjectController extends Controller
         }
     }
 
-    /**
-     * Create new project with shifts
-     */
+    
     public function store(Request $request)
 {
     $request->validate([
@@ -147,7 +141,7 @@ class ProjectController extends Controller
     DB::beginTransaction();
 
     try {
-        // VALIDASI: Jika enabled_sub_kategori_izin ada, pastikan cuti_khusus diaktifkan
+        
         if (!empty($request->enabled_sub_kategori_izin) && 
             !in_array('cuti_khusus', $request->enabled_izin_categories ?? [])) {
             return response()->json([
@@ -205,7 +199,7 @@ class ProjectController extends Controller
 
     } catch (\Exception $e) {
         DB::rollback();
-        // Log::error('Create project error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,
@@ -214,9 +208,7 @@ class ProjectController extends Controller
     }
 }
 
-    /**
-     * Update project with shifts
-     */
+    
     public function update(Request $request, $id)
 {
     $request->validate([
@@ -245,7 +237,7 @@ class ProjectController extends Controller
     DB::beginTransaction();
 
     try {
-        // VALIDASI: Jika enabled_sub_kategori_izin ada, pastikan cuti_khusus diaktifkan
+        
         if (!empty($request->enabled_sub_kategori_izin) && 
             !in_array('cuti_khusus', $request->enabled_izin_categories ?? [])) {
             return response()->json([
@@ -326,7 +318,7 @@ class ProjectController extends Controller
 
     } catch (\Exception $e) {
         DB::rollback();
-        // Log::error('Update project error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,
@@ -335,9 +327,7 @@ class ProjectController extends Controller
     }
 }
 
-    /**
-     * Soft delete project (change status to tidak_aktif)
-     */
+    
     public function destroy($id)
     {
         try {
@@ -353,7 +343,7 @@ class ProjectController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Delete project error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -362,9 +352,7 @@ class ProjectController extends Controller
         }
     }
 
-    /**
-     * Export projects to Excel
-     */
+    
     public function export()
     {
         try {
@@ -386,7 +374,7 @@ class ProjectController extends Controller
             );
 
         } catch (\Exception $e) {
-            // Log::error('Export project error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -403,14 +391,14 @@ class ProjectController extends Controller
         $enabledCategories = $project->getEnabledKategoriIzin();
         $enabledSubCategories = $project->getEnabledSubKategoriIzin();
         
-        // Data kategori master
+        
         $allCategories = [
             [
                 'value' => PengajuanIzin::KATEGORI_SAKIT,
                 'label' => 'Sakit',
                 'kode' => 'S',
                 'deskripsi' => 'Izin karena sakit (wajib lampirkan surat keterangan dokter)',
-                'can_disable' => true, // Semua kategori bisa di-disable
+                'can_disable' => true, 
                 'enabled' => in_array(PengajuanIzin::KATEGORI_SAKIT, $enabledCategories)
             ],
             [
@@ -495,7 +483,7 @@ class ProjectController extends Controller
         ]);
         
     } catch (\Exception $e) {
-        // Log::error('Get izin configuration error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,

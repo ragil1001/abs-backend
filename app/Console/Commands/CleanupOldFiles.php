@@ -21,13 +21,13 @@ class CleanupOldFiles extends Command
     {        
         $cutoffDate = Carbon::now()->subDays(40);
         
-        // Cleanup foto presensi
+        
         $presensiCleaned = $this->cleanupPresensi($cutoffDate);
         
-        // Cleanup file dokumen izin
+        
         $izinCleaned = $this->cleanupPengajuanIzin($cutoffDate);
         
-        // Cleanup file SKL lembur
+        
         $lemburCleaned = $this->cleanupPengajuanLembur($cutoffDate);
         
         Log::info("File cleanup - Foto: {$presensiCleaned}, Dokumen Izin: {$izinCleaned}, SKL Lembur: {$lemburCleaned}");

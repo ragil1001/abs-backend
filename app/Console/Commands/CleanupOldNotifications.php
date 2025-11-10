@@ -23,11 +23,11 @@ class CleanupOldNotifications extends Command
         $this->info("Cutoff time: {$cutoffTime->format('Y-m-d H:i:s')}");
         $this->info("Current time: " . Carbon::now()->format('Y-m-d H:i:s'));
         
-        // Cleanup read notifications older than 2 hours (TESTING)
+        
         $this->info('Membersihkan notifikasi lama...');
         $notificationsCleaned = $this->deleteOldNotifications($cutoffTime);
         
-        // Cleanup inactive FCM tokens older than 2 hours (TESTING)
+        
         $this->info('Membersihkan FCM token tidak aktif...');
         $tokensCleaned = $this->cleanupInactiveTokens($cutoffTime);
         
@@ -42,7 +42,7 @@ class CleanupOldNotifications extends Command
 
     private function deleteOldNotifications($cutoffTime)
     {
-        // Delete read notifications older than cutoff
+        
         $deleted = Notification::where('is_read', true)
             ->where('read_at', '<', $cutoffTime)
             ->delete();
@@ -54,16 +54,16 @@ class CleanupOldNotifications extends Command
 
     private function cleanupInactiveTokens($cutoffTime)
     {
-        // Delete tokens that haven't been used for 2 hours
+        
         $deleted = FcmToken::where('is_active', false)
             ->where('updated_at', '<', $cutoffTime)
             ->delete();
 
         $this->line("  - Deleted {$deleted} inactive tokens");
 
-        // Also delete tokens that are marked active but very old (likely stale)
+        
         $staleDeleted = FcmToken::where('is_active', true)
-            ->where('updated_at', '<', $cutoffTime->copy()->subHours(2)) // 4 hours total
+            ->where('updated_at', '<', $cutoffTime->copy()->subHours(2)) 
             ->delete();
 
         if ($staleDeleted > 0) {

@@ -20,9 +20,7 @@ class TukarShiftController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    /**
-     * Get daftar permintaan tukar shift untuk karyawan (mobile)
-     */
+    
     public function index(Request $request)
     {
         $request->validate([
@@ -100,7 +98,7 @@ class TukarShiftController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get tukar shift error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -109,9 +107,7 @@ class TukarShiftController extends Controller
         }
     }
 
-    /**
-     * Get detail tukar shift
-     */
+    
     public function show(Request $request, $tukarShiftId)
     {
         try {
@@ -127,7 +123,7 @@ class TukarShiftController extends Controller
                 'project'
             ])->findOrFail($tukarShiftId);
 
-            // Validasi akses (skip untuk admin web)
+            
             if ($request->user() instanceof \App\Models\Karyawan) {
                 if (!$tukarShift->isPeminta($karyawan->id) && !$tukarShift->isTarget($karyawan->id)) {
                     return response()->json([
@@ -137,7 +133,7 @@ class TukarShiftController extends Controller
                 }
             }
 
-            // Get shift details using helper
+            
             $shiftPeminta = $this->getShiftDetails($tukarShift->jadwalPeminta);
             $shiftTarget = $this->getShiftDetails($tukarShift->jadwalTarget);
 
@@ -174,7 +170,7 @@ class TukarShiftController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get detail tukar shift error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -183,9 +179,7 @@ class TukarShiftController extends Controller
         }
     }
 
-    /**
-     * Get jadwal shift karyawan yang available untuk ditukar
-     */
+    
     public function getMyAvailableShifts(Request $request)
     {
         $request->validate([
@@ -227,7 +221,7 @@ class TukarShiftController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get available shifts error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -236,12 +230,8 @@ class TukarShiftController extends Controller
         }
     }
 
-    /**
-     * Get karyawan yang memiliki shift di tanggal tertentu
-     */
-    /**
- * Get karyawan yang memiliki shift di tanggal tertentu
- */
+    
+    
 public function getKaryawanWithShift(Request $request)
 {
     $request->validate([
@@ -263,10 +253,10 @@ public function getKaryawanWithShift(Request $request)
         $projectId = $karyawanProject->project_id;
         $tanggal = $request->tanggal;
 
-        // ✅ CHANGED: Use LEFT JOIN untuk divisi agar karyawan dengan divisi NULL tetap muncul
+        
         $query = DB::table('karyawan_projects as kp')
             ->join('karyawans as k', 'kp.karyawan_id', '=', 'k.id')
-            ->leftJoin('divisis as d', 'k.divisi_id', '=', 'd.id')  // ✅ LEFT JOIN
+            ->leftJoin('divisis as d', 'k.divisi_id', '=', 'd.id')  
             ->join('jabatans as j', 'k.jabatan_id', '=', 'j.id')
             ->join('jadwal_karyawans as jk', 'kp.id', '=', 'jk.karyawan_project_id')
             ->where('kp.project_id', $projectId)
@@ -279,7 +269,7 @@ public function getKaryawanWithShift(Request $request)
                 'k.nama',
                 'k.nik',
                 'k.no_telepon',
-                'd.nama as divisi',  // Akan NULL jika tidak ada divisi
+                'd.nama as divisi',  
                 'j.nama as jabatan',
                 'jk.id as jadwal_id',
                 'jk.shift_code',
@@ -306,7 +296,7 @@ public function getKaryawanWithShift(Request $request)
                 'nama' => $k->nama,
                 'nik' => $k->nik,
                 'no_telp' => $k->no_telepon,
-                'divisi' => $k->divisi ?? '-',  // ✅ Tetap handle null di sini
+                'divisi' => $k->divisi ?? '-',  
                 'jabatan' => $k->jabatan,
                 'shift' => $shift,
             ];
@@ -318,7 +308,7 @@ public function getKaryawanWithShift(Request $request)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Get karyawan with shift error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,
@@ -327,9 +317,7 @@ public function getKaryawanWithShift(Request $request)
     }
 }
 
-    /**
-     * Ajukan tukar shift
-     */
+    
     public function store(Request $request)
     {
         $request->validate([
@@ -423,7 +411,7 @@ public function getKaryawanWithShift(Request $request)
                 'tanggal_pengajuan' => now(),
             ]);
 
-            // Load relationships untuk notifikasi
+            
             $tukarShift->load([
                 'peminta',
                 'target',
@@ -434,10 +422,10 @@ public function getKaryawanWithShift(Request $request)
 
             DB::commit();
 
-            // Send notification to target karyawan
+            
             $this->notificationService->notifyKaryawanNewTukarShift($tukarShift);
 
-            // Send notification to admin (optional)
+            
             $this->notificationService->notifyAdminNewTukarShift($tukarShift);
 
             return response()->json([
@@ -448,7 +436,7 @@ public function getKaryawanWithShift(Request $request)
 
         } catch (\Exception $e) {
             DB::rollback();
-            // Log::error('Create tukar shift error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -457,9 +445,7 @@ public function getKaryawanWithShift(Request $request)
         }
     }
 
-    /**
-     * Proses tukar shift (setujui/tolak) - untuk target
-     */
+    
     public function proses(Request $request, $tukarShiftId)
     {
         $request->validate([
@@ -506,14 +492,14 @@ public function getKaryawanWithShift(Request $request)
                 $tukarShift->approve();
                 $this->swapJadwal($tukarShift);
                 
-                // Send notification to peminta (approved)
+                
                 $this->notificationService->notifyKaryawanTukarShiftApproved($tukarShift);
                 
                 $message = 'Permintaan tukar shift berhasil disetujui';
             } else {
                 $tukarShift->reject($request->alasan_penolakan);
                 
-                // Send notification to peminta (rejected)
+                
                 $this->notificationService->notifyKaryawanTukarShiftRejected($tukarShift);
                 
                 $message = 'Permintaan tukar shift berhasil ditolak';
@@ -529,7 +515,7 @@ public function getKaryawanWithShift(Request $request)
 
         } catch (\Exception $e) {
             DB::rollback();
-            // Log::error('Proses tukar shift error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -538,9 +524,7 @@ public function getKaryawanWithShift(Request $request)
         }
     }
 
-    /**
-     * Batalkan permintaan tukar shift - untuk peminta
-     */
+    
     public function cancel(Request $request, $tukarShiftId)
     {
         DB::beginTransaction();
@@ -574,7 +558,7 @@ public function getKaryawanWithShift(Request $request)
 
         } catch (\Exception $e) {
             DB::rollback();
-            // Log::error('Cancel tukar shift error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -583,9 +567,7 @@ public function getKaryawanWithShift(Request $request)
         }
     }
 
-    /**
-     * Get summary tukar shift by project (UNTUK ADMIN WEB)
-     */
+    
     public function getSummary($projectId, Request $request)
     {
         $request->validate([
@@ -618,7 +600,7 @@ public function getKaryawanWithShift(Request $request)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get summary tukar shift error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -627,9 +609,7 @@ public function getKaryawanWithShift(Request $request)
         }
     }
 
-    /**
-     * Get tukar shift by project (UNTUK ADMIN WEB)
-     */
+    
     public function indexAdmin(Request $request, $projectId)
     {
         $request->validate([
@@ -653,12 +633,12 @@ public function getKaryawanWithShift(Request $request)
             ->where('project_id', $projectId)
             ->whereBetween('tanggal_pengajuan', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
 
-            // Filter by status
+            
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
 
-            // Search by nama
+            
             if ($request->has('search') && $request->search) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
@@ -673,7 +653,7 @@ public function getKaryawanWithShift(Request $request)
                 });
             }
 
-            // Sorting
+            
             $sortField = $request->input('sort_field', 'created_at');
             $sortDirection = $request->input('sort_direction', 'desc');
             
@@ -700,7 +680,7 @@ public function getKaryawanWithShift(Request $request)
             $perPage = $request->input('per_page', 10);
             $result = $query->paginate($perPage);
 
-            // Use helper method for shift details
+            
             $data = $result->map(function($item) {
                 $shiftPeminta = $this->getShiftDetails($item->jadwalPeminta);
                 $shiftTarget = $this->getShiftDetails($item->jadwalTarget);
@@ -745,8 +725,8 @@ public function getKaryawanWithShift(Request $request)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get tukar shift admin error: ' . $e->getMessage());
-            // Log::error($e->getTraceAsString());
+            
+            
             
             return response()->json([
                 'success' => false,
@@ -755,25 +735,23 @@ public function getKaryawanWithShift(Request $request)
         }
     }
 
-    // ========== HELPER METHODS ==========
+    
 
-    /**
-     * Get shift details dari jadwal
-     */
+    
     private function getShiftDetails($jadwal)
     {
-        // Load project with shifts
+        
         $jadwal->load('karyawanProject.project.shiftProjects');
         
         $project = $jadwal->karyawanProject->project;
         $shiftCodeUpper = strtoupper($jadwal->shift_code);
         
-        // Find shift dengan case-insensitive comparison
+        
         $shift = $project->shiftProjects->first(function($s) use ($shiftCodeUpper) {
             return strtoupper($s->kode) === $shiftCodeUpper;
         });
         
-        // Format waktu ke HH:mm
+        
         $waktuMulai = null;
         $waktuSelesai = null;
         
@@ -793,9 +771,7 @@ public function getKaryawanWithShift(Request $request)
         ];
     }
 
-    /**
-     * Swap jadwal antara peminta dan target
-     */
+    
     private function swapJadwal($tukarShift)
     {
         $jadwalPeminta = $tukarShift->jadwalPeminta;
@@ -813,20 +789,18 @@ public function getKaryawanWithShift(Request $request)
             'keterangan' => "Ditukar dengan {$tukarShift->peminta->nama} (ID Tukar: {$tukarShift->id})"
         ]);
 
-        // Log::info('Jadwal berhasil ditukar', [
-        //     'tukar_shift_id' => $tukarShift->id,
-        //     'jadwal_peminta_id' => $jadwalPeminta->id,
-        //     'jadwal_target_id' => $jadwalTarget->id,
-        //     'shift_peminta_before' => $tempShiftCode,
-        //     'shift_peminta_after' => $jadwalPeminta->fresh()->shift_code,
-        //     'shift_target_before' => $jadwalTarget->shift_code,
-        //     'shift_target_after' => $jadwalTarget->fresh()->shift_code,
-        // ]);
+        
+        
+        
+        
+        
+        
+        
+        
+        
     }
 
-    /**
-     * Get nama hari dalam bahasa Indonesia
-     */
+    
     private function getHari($tanggal)
     {
         $days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];

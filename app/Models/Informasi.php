@@ -35,7 +35,7 @@ class Informasi extends Model
 
     protected $appends = ['time_ago', 'file_url'];
 
-    // Relationships
+    
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -53,7 +53,7 @@ class Informasi extends Model
                     ->withTimestamps();
     }
 
-    // Scopes
+    
     public function scopeTerkirim($query)
     {
         return $query->where('status', 'terkirim');
@@ -69,7 +69,7 @@ class Informasi extends Model
         return $query->where('target_type', $type);
     }
 
-    // Accessors
+    
     public function getTimeAgoAttribute()
     {
         return $this->dikirim_at ? $this->dikirim_at->diffForHumans() : null;
@@ -100,7 +100,7 @@ class Informasi extends Model
         return round(($this->total_dibaca / $this->total_penerima) * 100, 1);
     }
 
-    // Methods
+    
     public function kirim()
     {
         $this->update([
@@ -115,9 +115,7 @@ class Informasi extends Model
         $this->save();
     }
 
-    /**
-     * Get list of karyawan IDs based on target type and IDs
-     */
+    
     public function getTargetKaryawanIds()
     {
         switch ($this->target_type) {
@@ -151,9 +149,7 @@ class Informasi extends Model
         }
     }
 
-    /**
-     * Get target names for display
-     */
+    
     public function getTargetNamesAttribute()
     {
         switch ($this->target_type) {

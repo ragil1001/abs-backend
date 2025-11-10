@@ -12,19 +12,19 @@ class PengajuanIzin extends Model
 {
     use HasFactory;
 
-    // Konstanta untuk kategori izin
+    
     const KATEGORI_SAKIT = 'sakit';
     const KATEGORI_IZIN = 'izin';
     const KATEGORI_CUTI_TAHUNAN = 'cuti_tahunan';
     const KATEGORI_CUTI_KHUSUS = 'cuti_khusus';
 
-    // Konstanta untuk sub kategori cuti khusus
-    const SUB_PERNIKAHAN_KARYAWAN = 'pernikahan_karyawan'; // 3 hari
-    const SUB_PERNIKAHAN_ANAK = 'pernikahan_anak'; // 2 hari
-    const SUB_ISTRI_MELAHIRKAN = 'istri_melahirkan'; // 2 hari
-    const SUB_KEMATIAN_KELUARGA = 'kematian_keluarga'; // 2 hari (suami/istri/anak/ortu/mertua)
-    const SUB_KEMATIAN_SERUMAH = 'kematian_serumah'; // 1 hari
-    const SUB_KHITANAN_BAPTIS = 'khitanan_baptis'; // 2 hari
+    
+    const SUB_PERNIKAHAN_KARYAWAN = 'pernikahan_karyawan'; 
+    const SUB_PERNIKAHAN_ANAK = 'pernikahan_anak'; 
+    const SUB_ISTRI_MELAHIRKAN = 'istri_melahirkan'; 
+    const SUB_KEMATIAN_KELUARGA = 'kematian_keluarga'; 
+    const SUB_KEMATIAN_SERUMAH = 'kematian_serumah'; 
+    const SUB_KHITANAN_BAPTIS = 'khitanan_baptis'; 
 
     protected $fillable = [
         'jadwal_karyawan_id',
@@ -48,11 +48,9 @@ class PengajuanIzin extends Model
         'diproses_pada' => 'datetime',
     ];
 
-    // ========== HELPER METHODS ==========
     
-    /**
-     * Get durasi hari berdasarkan sub kategori cuti khusus
-     */
+    
+    
     public static function getDurasiCutiKhusus($subKategori)
     {
         $durasi = [
@@ -67,9 +65,7 @@ class PengajuanIzin extends Model
         return $durasi[$subKategori] ?? 1;
     }
     
-    /**
-     * Get label untuk sub kategori
-     */
+    
     public static function getSubKategoriLabel($subKategori)
     {
         $labels = [
@@ -84,9 +80,7 @@ class PengajuanIzin extends Model
         return $labels[$subKategori] ?? $subKategori;
     }
     
-    /**
-     * Get kode untuk rekap presensi
-     */
+    
     public function getKodeRekap()
     {
         switch ($this->kategori_izin) {
@@ -103,7 +97,7 @@ class PengajuanIzin extends Model
         }
     }
 
-    // ========== RELATIONSHIPS ==========
+    
     
     public function jadwalKaryawan()
     {
@@ -115,7 +109,7 @@ class PengajuanIzin extends Model
         return $this->belongsTo(User::class, 'diproses_oleh');
     }
 
-    // ========== SCOPES ==========
+    
     
     public function scopeByJadwal($query, $jadwalId)
     {
@@ -178,7 +172,7 @@ class PengajuanIzin extends Model
         return $query->where('kategori_izin', $kategori);
     }
 
-    // ========== ACCESSORS ==========
+    
     
     public function getStatusTextAttribute()
     {
@@ -195,13 +189,13 @@ class PengajuanIzin extends Model
     {
         if (!$this->file_dokumen) return null;
         
-        // $isMobileApp = request()->header('X-Requested-With') === 'FlutterApp';
         
-        // if ($isMobileApp) {
-        //     $baseUrl = 'http://10.70.173.254:8000';
-        // } else {
-        //     $baseUrl = config('app.url');
-        // }
+        
+        
+        
+        
+        
+        
 
         $baseUrl = config('app.url');
         
@@ -224,7 +218,7 @@ class PengajuanIzin extends Model
         return $kategori;
     }
 
-    // ========== INSTANCE METHODS ==========
+    
     
     public function setujui($adminId, $catatan = null)
 {
@@ -234,13 +228,13 @@ class PengajuanIzin extends Model
         $karyawan = $karyawanProject->karyawan;
         $project = $karyawanProject->project;
         
-        // Validasi kategori izin masih aktif
+        
         $validation = PengajuanIzin::validateKategoriForProject($project, $this->kategori_izin);
         if (!$validation['valid']) {
             throw new \Exception('Kategori izin tidak valid: ' . $validation['message']);
         }
         
-        // Jika cuti khusus, validasi sub kategori
+        
         if ($this->kategori_izin === self::KATEGORI_CUTI_KHUSUS) {
             $subValidation = PengajuanIzin::validateSubKategoriForProject($project, $this->sub_kategori_izin);
             if (!$subValidation['valid']) {
@@ -248,12 +242,12 @@ class PengajuanIzin extends Model
             }
         }
         
-        // Jika cuti tahunan, kurangi sisa cuti
+        
         if ($this->kategori_izin === self::KATEGORI_CUTI_TAHUNAN) {
             $karyawan->kurangiCutiTahunan($this->durasi_hari);
         }
         
-        // Update status pengajuan
+        
         $this->update([
             'status' => 'disetujui',
             'catatan_admin' => $catatan,
@@ -261,7 +255,7 @@ class PengajuanIzin extends Model
             'diproses_oleh' => $adminId
         ]);
 
-        // Ambil semua jadwal dalam periode izin
+        
         $jadwals = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
                                  ->where('tanggal', '>=', $this->tanggal_mulai->format('Y-m-d'))
                                  ->where('tanggal', '<=', $this->tanggal_selesai->format('Y-m-d'))
@@ -275,46 +269,46 @@ class PengajuanIzin extends Model
         foreach ($jadwals as $jadwal) {
             $shiftCode = strtoupper(trim($jadwal->shift_code ?? ''));
             
-            // Skip hari libur
+            
             if ($shiftCode === 'L' || empty($shiftCode)) {
                 $skippedCount++;
-                // \Log::info("Skip libur untuk jadwal ID {$jadwal->id} tanggal {$jadwal->tanggal}");
+                
                 continue;
             }
 
-            // ✅ CRITICAL: Build keterangan dengan jenis izin lengkap
+            
             $keterangan = $this->jenis_izin_lengkap;
             if ($this->keterangan) {
                 $keterangan .= ": " . $this->keterangan;
             }
 
-            // ✅ CRITICAL FIX: Update EXISTING presensi (termasuk alpa) dengan kategori_izin
+            
             foreach (['masuk', 'pulang'] as $tipe) {
                 $existingPresensi = \App\Models\Presensi::where('jadwal_karyawan_id', $jadwal->id)
                     ->where('tipe', $tipe)
                     ->first();
 
                 if ($existingPresensi) {
-                    // ✅ UPDATE existing presensi (bisa alpa, hadir, terlambat, dll)
+                    
                     $existingPresensi->update([
                         'status' => 'izin',
-                        'kategori_izin' => $this->kategori_izin, // ✅ SET kategori_izin
+                        'kategori_izin' => $this->kategori_izin, 
                         'keterangan' => $keterangan,
-                        // Keep existing waktu, foto, lokasi if any
+                        
                     ]);
                     $updatedCount++;
-                    // \Log::info("✅ Updated existing presensi {$tipe} (old status: {$existingPresensi->status}) to izin with kategori: {$this->kategori_izin}", [
-                    //     'presensi_id' => $existingPresensi->id,
-                    //     'jadwal_id' => $jadwal->id,
-                    //     'tanggal' => $jadwal->tanggal
-                    // ]);
+                    
+                    
+                    
+                    
+                    
                 } else {
                     \App\Models\Presensi::create([
                         'jadwal_karyawan_id' => $jadwal->id,
                         'tipe' => $tipe,
                         'tanggal' => $jadwal->tanggal,
                         'status' => 'izin',
-                        'kategori_izin' => $this->kategori_izin, // ✅ SET kategori_izin
+                        'kategori_izin' => $this->kategori_izin, 
                         'keterangan' => $keterangan,
                         'waktu' => null,
                         'latitude' => null,
@@ -322,20 +316,20 @@ class PengajuanIzin extends Model
                         'foto' => null
                     ]);
                     $createdCount++;
-                    // \Log::info("✅ Created new presensi {$tipe} with kategori: {$this->kategori_izin}", [
-                    //     'jadwal_id' => $jadwal->id,
-                    //     'tanggal' => $jadwal->tanggal
-                    // ]);
+                    
+                    
+                    
+                    
                 }
             }
         }
 
-        // \Log::info("✅ Pengajuan izin ID {$this->id} disetujui", [
-        //     'kategori_izin' => $this->kategori_izin,
-        //     'created_count' => $createdCount,
-        //     'updated_count' => $updatedCount,
-        //     'skipped_count' => $skippedCount
-        // ]);
+        
+        
+        
+        
+        
+        
 
         DB::commit();
         return [
@@ -346,14 +340,12 @@ class PengajuanIzin extends Model
         ];
     } catch (\Exception $e) {
         DB::rollback();
-        // \Log::error("❌ Error setujui pengajuan izin ID {$this->id}: " . $e->getMessage());
+        
         throw $e;
     }
 }
 
-    /**
-     * Tolak pengajuan izin
-     */
+    
     public function tolak($adminId, $catatan = null)
     {
         DB::beginTransaction();
@@ -365,7 +357,7 @@ class PengajuanIzin extends Model
                 'diproses_oleh' => $adminId
             ]);
 
-            // Cek apakah tanggal izin sudah lewat dan buat presensi alpa jika perlu
+            
             $karyawanProject = $this->jadwalKaryawan->karyawanProject;
             $project = $karyawanProject->project;
             
@@ -406,9 +398,7 @@ class PengajuanIzin extends Model
         }
     }
 
-    /**
-     * Batalkan pengajuan izin (oleh karyawan)
-     */
+    
     public function batalkan()
     {
         if ($this->status !== 'pending') {
@@ -429,7 +419,7 @@ class PengajuanIzin extends Model
         }
     }
 
-    // ========== STATIC METHODS ==========
+    
     
     public static function sudahMengajukanPeriode($karyawanProjectId, $tanggalMulai, $tanggalSelesai, $excludeId = null)
     {
@@ -453,7 +443,7 @@ class PengajuanIzin extends Model
         return $query->exists();
     }
 
-    // ========== BOOT METHOD ==========
+    
     
     protected static function boot()
     {
@@ -465,13 +455,13 @@ class PengajuanIzin extends Model
             }
         });
         
-        // Jika izin dibatalkan atau ditolak setelah disetujui, kembalikan cuti tahunan
+        
         static::updating(function ($pengajuan) {
             if ($pengajuan->isDirty('status')) {
                 $oldStatus = $pengajuan->getOriginal('status');
                 $newStatus = $pengajuan->status;
                 
-                // Jika dari disetujui ke ditolak/dibatalkan dan kategori cuti tahunan
+                
                 if ($oldStatus === 'disetujui' && 
                     in_array($newStatus, ['ditolak', 'dibatalkan']) &&
                     $pengajuan->kategori_izin === self::KATEGORI_CUTI_TAHUNAN) {
@@ -483,9 +473,7 @@ class PengajuanIzin extends Model
         });
     }
 
-    /**
- * Validasi apakah kategori izin valid untuk project
- */
+    
 public static function validateKategoriForProject(Project $project, $kategoriIzin)
 {
     if (!$project->isKategoriIzinEnabled($kategoriIzin)) {
@@ -505,9 +493,7 @@ public static function validateKategoriForProject(Project $project, $kategoriIzi
     return ['valid' => true];
 }
 
-/**
- * Validasi apakah sub kategori valid untuk project
- */
+
 public static function validateSubKategoriForProject(Project $project, $subKategori)
 {
     if (!$project->isSubKategoriEnabled($subKategori)) {

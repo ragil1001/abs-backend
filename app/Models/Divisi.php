@@ -11,7 +11,7 @@ class Divisi extends Model
 
     protected $table = 'divisis';
     
-    // Allow manual ID assignment
+    
     public $incrementing = false;
     protected $keyType = 'int';
     
@@ -26,13 +26,13 @@ class Divisi extends Model
         'updated_at' => 'datetime',
     ];
 
-    // Relationships
+    
     public function karyawans()
     {
         return $this->hasMany(Karyawan::class, 'divisi_id');
     }
 
-    // Scopes
+    
     public function scopeSearch($query, $search)
     {
         return $query->where('nama', 'like', "%{$search}%");

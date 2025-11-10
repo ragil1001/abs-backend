@@ -1,5 +1,5 @@
 <?php
-// app/Models/Notification.php
+
 
 namespace App\Models;
 
@@ -33,7 +33,7 @@ class Notification extends Model
 
     protected $appends = ['time_ago'];
 
-    // Relationships
+    
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -44,7 +44,7 @@ class Notification extends Model
         return $this->belongsTo(Karyawan::class);
     }
 
-    // Scopes
+    
     public function scopeForUser($query, $userId)
     {
         return $query->where('user_id', $userId);
@@ -70,13 +70,13 @@ class Notification extends Model
         return $query->where('type', $type);
     }
 
-    // Accessors
+    
     public function getTimeAgoAttribute()
     {
         return $this->created_at->diffForHumans();
     }
 
-    // Methods
+    
     public function markAsRead()
     {
         if (!$this->is_read) {
@@ -87,7 +87,7 @@ class Notification extends Model
         }
     }
 
-    // Static Methods
+    
     public static function createForAdmin($userId, $type, $title, $body, $data = [], $relatedModel = null)
     {
         try {
@@ -101,11 +101,11 @@ class Notification extends Model
                 'notifiable_id' => $relatedModel ? $relatedModel->id : null
             ]);
 
-            // Log::info('Notification created for admin', [
-            //     'notification_id' => $notification->id,
-            //     'user_id' => $userId,
-            //     'type' => $type
-            // ]);
+            
+            
+            
+            
+            
 
             return $notification;
         } catch (\Exception $e) {
@@ -128,11 +128,11 @@ class Notification extends Model
             'related_id' => $relatedModel ? $relatedModel->id : null,
         ]);
 
-        // Log::info('Notification created for karyawan', [
-        //     'notification_id' => $notification->id,
-        //     'karyawan_id' => $karyawanId,
-        //     'type' => $type
-        // ]);
+        
+        
+        
+        
+        
 
         return $notification;
     } catch (\Exception $e) {
@@ -179,7 +179,7 @@ class Notification extends Model
                             'read_at' => Carbon::now()
                         ]);
 
-            // Log::info("Marked {$count} notifications as read for karyawan {$karyawanId}");
+            
 
             return $count;
         } catch (\Exception $e) {
@@ -197,7 +197,7 @@ class Notification extends Model
                           ->where('created_at', '<', $cutoffDate)
                           ->delete();
 
-            // Log::info("Deleted {$deleted} old notifications");
+            
 
             return $deleted;
         } catch (\Exception $e) {

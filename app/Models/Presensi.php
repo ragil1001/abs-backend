@@ -38,7 +38,7 @@ class Presensi extends Model
         'updated_at'
     ];
 
-    // ========== RELATIONSHIPS ==========
+    
     
     public function jadwalKaryawan()
     {
@@ -57,7 +57,7 @@ class Presensi extends Model
         );
     }
 
-    // ========== SCOPES ==========
+    
     
     public function scopeByJadwal($query, $jadwalId)
     {
@@ -133,7 +133,7 @@ class Presensi extends Model
         });
     }
 
-    // ========== ACCESSORS ==========
+    
     
     public function getStatusTextAttribute()
     {
@@ -162,29 +162,27 @@ class Presensi extends Model
         return Storage::url($this->foto);
     }
 
-    /**
-     * UPDATED: Get kode status untuk rekap dengan kategori izin
-     */
+    
     public function getStatusKodeAttribute()
 {
-    // Untuk rekap bulanan
+    
     if ($this->status === 'libur') return 'L';
     if ($this->status === 'alpa') return 'A';
     
-    // CRITICAL FIX: Pecah izin berdasarkan kategori_izin
+    
     if ($this->status === 'izin') {
         switch ($this->kategori_izin) {
             case 'sakit':
                 return 'S';
             case 'izin':
-                // Log::warning('Kategori izin "izin" terdeteksi, gunakan kategori yang lebih spesifik jika memungkinkan.');
+                
                 return 'I';
             case 'cuti_tahunan':
                 return 'CT';
             case 'cuti_khusus':
                 return 'IK';
             default:
-                return 'I'; // Default izin
+                return 'I'; 
         }
     }
     
@@ -201,11 +199,9 @@ class Presensi extends Model
     return '-';
 }
 
-    // ========== STATIC METHODS ==========
     
-    /**
-     * Buat presensi alpa (tidak presensi masuk dan pulang)
-     */
+    
+    
     public static function buatPresensiAlpa($jadwalKaryawanId, $tanggal)
     {
         try {
@@ -217,7 +213,7 @@ class Presensi extends Model
             
             if ($existingMasuk) {
                 DB::rollBack();
-                // Log::info('Presensi alpa sudah ada', ['jadwal_id' => $jadwalKaryawanId]);
+                
                 return null;
             }
             
@@ -255,23 +251,21 @@ class Presensi extends Model
                 'jadwalKaryawan.karyawanProject.project.shiftProjects'
             ]);
             
-            // Log::info('✅ Presensi alpa dibuat dengan relationships', [
-            //     'jadwal_karyawan_id' => $jadwalKaryawanId,
-            //     'tanggal' => $tanggal
-            // ]);
+            
+            
+            
+            
             
             return $presensiMasuk;
             
         } catch (\Exception $e) {
             DB::rollBack();
-            // Log::error('❌ Error creating presensi alpa: ' . $e->getMessage());
+            
             throw $e;
         }
     }
 
-    /**
-     * Cek dan buat presensi tidak presensi pulang
-     */
+    
     public static function cekTidakPresensiPulang($jadwalKaryawanId, $tanggal)
     {
         try {
@@ -305,22 +299,20 @@ class Presensi extends Model
                 'keterangan' => 'Tidak melakukan presensi pulang'
             ]);
             
-            // Log::info('Tidak presensi pulang dibuat', [
-            //     'jadwal_karyawan_id' => $jadwalKaryawanId,
-            //     'tanggal' => $tanggal
-            // ]);
+            
+            
+            
+            
             
             return $presensi;
             
         } catch (\Exception $e) {
-            // Log::error('Error creating tidak presensi pulang: ' . $e->getMessage());
+            
             throw $e;
         }
     }
 
-    /**
-     * Buat presensi libur
-     */
+    
     public static function buatPresensiLibur($jadwalKaryawanId, $tanggal)
     {
         try {
@@ -361,23 +353,21 @@ class Presensi extends Model
             
             DB::commit();
             
-            // Log::info('Presensi libur dibuat', [
-            //     'jadwal_karyawan_id' => $jadwalKaryawanId,
-            //     'tanggal' => $tanggal
-            // ]);
+            
+            
+            
+            
             
             return true;
             
         } catch (\Exception $e) {
             DB::rollBack();
-            // Log::error('Error creating presensi libur: ' . $e->getMessage());
+            
             throw $e;
         }
     }
 
-    /**
-     * Hitung selisih waktu dalam menit
-     */
+    
     public static function hitungSelisihMenit($waktu1, $waktu2)
     {
         $time1 = Carbon::parse($waktu1);
@@ -385,9 +375,7 @@ class Presensi extends Model
         return abs($time1->diffInMinutes($time2));
     }
 
-    /**
-     * Format menit ke jam dan menit
-     */
+    
     public static function formatMenit($menit)
     {
         if ($menit < 60) {
@@ -404,7 +392,7 @@ class Presensi extends Model
         return $jam . ' jam';
     }
 
-    // ========== BOOT METHOD ==========
+    
     
     protected static function boot()
     {
@@ -421,9 +409,7 @@ class Presensi extends Model
         });
     }
 
-    /**
-     * Cleanup foto yang lebih dari 1 bulan 3 hari
-     */
+    
     public static function cleanupOldFiles()
     {
         $cutoffDate = Carbon::now()->subDays(33);

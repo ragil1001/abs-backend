@@ -16,7 +16,7 @@ use Carbon\Carbon;
 
 class PresensiController extends Controller
 {
-    // Di method cekPresensi(), tambahkan validasi untuk presensi pulang
+    
 
 public function cekPresensi(Request $request)
 {
@@ -50,12 +50,12 @@ public function cekPresensi(Request $request)
         $project = $karyawanProject->project;
         $isLibur = strtoupper($jadwal->shift_code) === 'L';
 
-        // ✅ CRITICAL: Jika hari libur, izinkan presensi dengan logic khusus
+        
         if ($isLibur) {
             return $this->handlePresensiHariLibur($jadwal, $karyawan, $project, $now);
         }
 
-        // Logic normal untuk hari kerja
+        
         $shift = ShiftProject::where('project_id', $project->id)
                              ->where('kode', $jadwal->shift_code)
                              ->first();
@@ -77,16 +77,16 @@ public function cekPresensi(Request $request)
         $waktuBukaPresensiMasuk = $waktuMulaiShift->copy()->subMinutes($waktuToleransi);
         $waktuTutupPresensiMasuk = $waktuSelesaiShift->copy();
 
-        // Log::info('Cek Presensi Debug', [
-        //     'karyawan_id' => $karyawan->id,
-        //     'jabatan_id' => $karyawan->jabatan_id,
-        //     'jabatan_nama' => $karyawan->jabatan->nama ?? '-',
-        //     'is_jabatan_excluded' => $isJabatanExcluded,
-        //     'excluded_jabatan_ids' => $project->excluded_jabatan_ids,
-        //     'shift_code' => $shift->kode,
-        //     'waktu_server' => $now->format('Y-m-d H:i:s'),
-        //     'waktu_mulai_shift' => $waktuMulaiShift->format('Y-m-d H:i:s'),
-        // ]);
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
         $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
                                  ->where('tipe', 'masuk')
@@ -101,15 +101,15 @@ public function cekPresensi(Request $request)
         $pesanWaktu = null;
         $errorType = null;
 
-        // Logic presensi MASUK
+        
         if (!$presensiMasuk) {
-            // ✅ NEW: Cek apakah shift sudah selesai
+            
             if ($now->greaterThan($waktuTutupPresensiMasuk)) {
                 $selisihMenit = (int)$now->diffInMinutes($waktuTutupPresensiMasuk);
                 $pesanWaktu = "Shift sudah berakhir " . $this->formatMenit($selisihMenit) . " yang lalu. Anda tidak dapat melakukan presensi masuk.";
                 $errorType = 'shift_ended';
             } 
-            // Shift belum dimulai
+            
             elseif ($now->lessThan($waktuBukaPresensiMasuk)) {
                 $selisihMenit = (int)$now->diffInMinutes($waktuBukaPresensiMasuk);
                 $pesanWaktu = "Presensi masuk akan dibuka pada " . 
@@ -117,19 +117,19 @@ public function cekPresensi(Request $request)
                               " (" . $this->formatMenit($selisihMenit) . " lagi)";
                 $errorType = 'shift_not_started';
             } 
-            // Boleh presensi
+            
             else {
                 $bisaPresensiMasuk = true;
                 $pesanWaktu = "Anda dapat melakukan presensi masuk sekarang";
             }
         } 
-        // Logic presensi PULANG
+        
         else {
             if (in_array($presensiMasuk->status, ['alpa', 'izin', 'libur'])) {
                 $pesanWaktu = "Anda tidak dapat melakukan presensi pulang (Status: {$presensiMasuk->status})";
                 $errorType = 'status_blocked';
             } elseif (!$presensiPulang) {
-                // Cek apakah shift sudah dimulai
+                
                 if ($now->lessThan($waktuMulaiShift)) {
                     $selisihMenit = (int)$now->diffInMinutes($waktuMulaiShift);
                     $bisaPresensiPulang = false;
@@ -187,10 +187,10 @@ public function cekPresensi(Request $request)
                     'waktu_sekarang' => $now->format('H:i:s'),
                     'waktu_buka_masuk' => $waktuBukaPresensiMasuk->format('H:i:s'),
                     'waktu_mulai_shift' => $waktuMulaiShift->format('H:i:s'),
-                    'waktu_selesai_shift' => $waktuSelesaiShift->format('H:i:s'), // ✅ NEW
+                    'waktu_selesai_shift' => $waktuSelesaiShift->format('H:i:s'), 
                     'waktu_sekarang_full' => $now->format('Y-m-d H:i:s'),
                     'pesan' => $pesanWaktu,
-                    'error_type' => $errorType // ✅ NEW
+                    'error_type' => $errorType 
                 ],
                 'bisa_presensi_masuk' => $bisaPresensiMasuk,
                 'bisa_presensi_pulang' => $bisaPresensiPulang,
@@ -202,8 +202,8 @@ public function cekPresensi(Request $request)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Cek presensi error: ' . $e->getMessage());
-        // Log::error($e->getTraceAsString());
+        
+        
         
         return response()->json([
             'success' => false,
@@ -229,18 +229,18 @@ public function cekPresensi(Request $request)
     $bisaPresensiPulang = false;
     $pesanWaktu = null;
 
-    // Logic presensi MASUK di hari libur
+    
     if (!$presensiMasuk || $presensiMasuk->status === 'libur') {
         $bisaPresensiMasuk = true;
         $pesanWaktu = "Hari libur - Anda dapat melakukan presensi masuk kapan saja";
     } 
-    // Logic presensi PULANG di hari libur
+    
     else {
         $tanggalMasuk = Carbon::parse($presensiMasuk->tanggal)->format('Y-m-d');
         $waktuMasuk = Carbon::parse($tanggalMasuk . ' ' . $presensiMasuk->waktu);
         $batasTidakPresensiPulang = $waktuMasuk->copy()->addHours(10);
 
-        // ✅ CRITICAL FIX: Cek apakah waktu pulang sudah terisi atau masih null
+        
         if (!$presensiPulang || $presensiPulang->status === 'libur' || $presensiPulang->waktu === null) {
             $bisaPresensiPulang = true;
             
@@ -298,7 +298,7 @@ public function cekPresensi(Request $request)
             ],
             'bisa_presensi_masuk' => $bisaPresensiMasuk,
             'bisa_presensi_pulang' => $bisaPresensiPulang,
-            // ✅ CRITICAL FIX: Cek juga apakah waktu sudah terisi
+            
             'sudah_presensi_masuk' => ($presensiMasuk && $presensiMasuk->status !== 'libur' && $presensiMasuk->waktu !== null),
             'sudah_presensi_pulang' => ($presensiPulang && $presensiPulang->status !== 'libur' && $presensiPulang->waktu !== null),
             'peringatan' => 'Jika Anda presensi di hari libur, jangan lupa mengajukan lembur dengan upload SKL'
@@ -306,12 +306,8 @@ public function cekPresensi(Request $request)
     ]);
 }
 
-    /**
-     * Validasi lokasi presensi - skip untuk jabatan yang dikecualikan
-     */
-    /**
- * Validasi lokasi presensi - skip untuk jabatan yang dikecualikan
- */
+    
+    
 public function validasiLokasi(Request $request)
 {
     $request->validate([
@@ -332,72 +328,72 @@ public function validasiLokasi(Request $request)
 
         $project = $karyawanProject->project;
         
-        // ✅ DEBUG: Check raw database values BEFORE accessor
-        // Log::info('🗄️ Project RAW Database Values', [
-        //     'id' => $project->id,
-        //     'nama' => $project->nama,
-        //     'lokasi_nama_column' => $project->getAttributes()['lokasi_nama'] ?? 'NULL',
-        //     'lokasi_latitude_column' => $project->getAttributes()['lokasi_latitude'] ?? 'NULL',
-        //     'lokasi_longitude_column' => $project->getAttributes()['lokasi_longitude'] ?? 'NULL',
-        //     'radius_column' => $project->getAttributes()['radius'] ?? 'NULL',
-        //     'all_attributes' => $project->getAttributes(),
-        // ]);
         
-        // ✅ CRITICAL: Check if jabatan excluded
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         $isJabatanExcluded = $project->isJabatanExcluded($karyawan->jabatan_id);
         
-        // ✅ ENHANCED DEBUG LOGS
-        // Log::info('🔍 Validasi Lokasi - FULL DEBUG', [
-        //     'karyawan_id' => $karyawan->id,
-        //     'karyawan_nik' => $karyawan->nik,
-        //     'karyawan_nama' => $karyawan->nama,
-        //     'jabatan_id' => $karyawan->jabatan_id,
-        //     'jabatan_nama' => $karyawan->jabatan->nama ?? '-',
-        //     'project_id' => $project->id,
-        //     'project_nama' => $project->nama,
-        //     'is_jabatan_excluded' => $isJabatanExcluded,
-        //     'excluded_jabatan_ids_raw' => $project->excluded_jabatan_ids,
-        //     'excluded_jabatan_ids_type' => gettype($project->excluded_jabatan_ids),
-        //     'input_latitude' => $request->latitude,
-        //     'input_longitude' => $request->longitude,
-        //     'input_latitude_type' => gettype($request->latitude),
-        //     'input_longitude_type' => gettype($request->longitude),
-        // ]);
         
-        // ✅ Parse lokasi JSON dari database
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         $projectLocation = is_string($project->lokasi) 
             ? json_decode($project->lokasi, true) 
             : $project->lokasi;
         
-        // ✅ CRITICAL: Convert to float explicitly
+        
         $projectLat = (float)($projectLocation['latitude'] ?? 0);
         $projectLon = (float)($projectLocation['longitude'] ?? 0);
         
-        // ✅ ENHANCED DEBUG: Log project location FROM DATABASE
-        // Log::info('📍 Project Location FROM DATABASE', [
-        //     'project_lokasi_raw' => $project->lokasi,
-        //     'project_lokasi_type' => gettype($project->lokasi),
-        //     'project_lokasi_decoded' => $projectLocation,
-        //     'project_lat_extracted' => $projectLocation['latitude'] ?? 'NULL',
-        //     'project_lon_extracted' => $projectLocation['longitude'] ?? 'NULL',
-        //     'project_lat_converted' => $projectLat,
-        //     'project_lon_converted' => $projectLon,
-        //     'project_lat_type' => gettype($projectLat),
-        //     'project_lon_type' => gettype($projectLon),
-        //     'project_radius' => $project->radius,
-        // ]);
         
-        // ✅ ENHANCED DEBUG: Log calculation inputs
-        // Log::info('🧮 Distance Calculation Inputs', [
-        //     'user_lat' => $request->latitude,
-        //     'user_lon' => $request->longitude,
-        //     'project_lat' => $projectLat,
-        //     'project_lon' => $projectLon,
-        //     'lat_diff' => abs($request->latitude - $projectLat),
-        //     'lon_diff' => abs($request->longitude - $projectLon),
-        // ]);
         
-        // ✅ Calculate distance
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         $jarak = $this->hitungJarak(
             $request->latitude,
             $request->longitude,
@@ -405,7 +401,7 @@ public function validasiLokasi(Request $request)
             $projectLon
         );
 
-        // ✅ CRITICAL: If jabatan excluded, ALWAYS return dalam_radius = true
+        
         $dalamRadius = $isJabatanExcluded ? true : ($jarak <= $project->radius);
 
         $response = [
@@ -427,19 +423,19 @@ public function validasiLokasi(Request $request)
             $response['data']['keterangan'] = 'Jabatan Anda dikecualikan dari pengecekan radius';
         }
 
-        // Log::info('✅ Validasi Lokasi Result', [
-        //     'dalam_radius' => $dalamRadius,
-        //     'jarak_meters' => round($jarak, 2),
-        //     'radius_meters' => $project->radius,
-        //     'is_jabatan_excluded' => $isJabatanExcluded,
-        //     'calculation_correct' => ($jarak < 100000), // Flag jika jarak > 100km (kemungkinan error)
-        // ]);
+        
+        
+        
+        
+        
+        
+        
 
         return response()->json($response);
 
     } catch (\Exception $e) {
-        // Log::error('❌ Validasi lokasi error: ' . $e->getMessage());
-        // Log::error($e->getTraceAsString());
+        
+        
         
         return response()->json([
             'success' => false,
@@ -448,39 +444,37 @@ public function validasiLokasi(Request $request)
     }
 }
 
-/**
- * ✅ HAVERSINE FORMULA - untuk menghitung jarak antara 2 koordinat GPS
- */
+
 private function hitungJarak($lat1, $lon1, $lat2, $lon2)
 {
-    $earthRadius = 6371000; // meter
+    $earthRadius = 6371000; 
 
-    // ✅ Convert to float explicitly
+    
     $lat1 = (float)$lat1;
     $lon1 = (float)$lon1;
     $lat2 = (float)$lat2;
     $lon2 = (float)$lon2;
 
-    // Log::info('🔢 hitungJarak - Input Values', [
-    //     'lat1' => $lat1,
-    //     'lon1' => $lon1,
-    //     'lat2' => $lat2,
-    //     'lon2' => $lon2,
-    //     'lat1_type' => gettype($lat1),
-    //     'lon1_type' => gettype($lon1),
-    //     'lat2_type' => gettype($lat2),
-    //     'lon2_type' => gettype($lon2),
-    // ]);
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     $dLat = deg2rad($lat2 - $lat1);
     $dLon = deg2rad($lon2 - $lon1);
 
-    // Log::info('🔢 hitungJarak - Delta Values', [
-    //     'dLat_deg' => ($lat2 - $lat1),
-    //     'dLon_deg' => ($lon2 - $lon1),
-    //     'dLat_rad' => $dLat,
-    //     'dLon_rad' => $dLon,
-    // ]);
+    
+    
+    
+    
+    
+    
 
     $a = sin($dLat / 2) * sin($dLat / 2) +
          cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
@@ -490,18 +484,18 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
 
     $distance = $earthRadius * $c;
 
-    // Log::info('🔢 hitungJarak - Calculation Steps', [
-    //     'a' => $a,
-    //     'c' => $c,
-    //     'distance_meters' => $distance,
-    // ]);
+    
+    
+    
+    
+    
 
     return $distance;
 }
 
     private function submitPresensiHariLibur($request, $jadwal, $karyawan, $project)
 {
-    // Cek presensi existing
+    
     $existingMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
                              ->where('tipe', 'masuk')
                              ->first();
@@ -510,7 +504,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
                               ->where('tipe', 'pulang')
                               ->first();
 
-    // ✅ VALIDASI: Cek apakah sudah presensi (status bukan libur)
+    
     if ($request->tipe === 'masuk' && 
         $existingMasuk && 
         $existingMasuk->status !== 'libur' && 
@@ -531,7 +525,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         ], 400);
     }
 
-    // ✅ VALIDASI: Untuk presensi pulang, harus sudah presensi masuk dulu
+    
     if ($request->tipe === 'pulang') {
         if (!$existingMasuk || 
             $existingMasuk->status === 'libur' || 
@@ -543,7 +537,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         }
     }
 
-    // Validasi radius (kecuali jabatan excluded)
+    
     $isJabatanExcluded = $project->isJabatanExcluded($karyawan->jabatan_id);
     
     $projectLocation = is_string($project->lokasi) 
@@ -553,7 +547,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
     $projectLat = (float)($projectLocation['latitude'] ?? 0);
     $projectLon = (float)($projectLocation['longitude'] ?? 0);
     
-    // ✅ CRITICAL: Hitung jarak dari lokasi yang dikirim request
+    
     $jarak = $this->hitungJarak(
         $request->latitude,
         $request->longitude,
@@ -561,15 +555,15 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         $projectLon
     );
 
-    // ✅ Validasi radius (kecuali jabatan excluded)
+    
     if (!$isJabatanExcluded && $jarak > $project->radius) {
-        // Log::warning('Presensi hari libur ditolak - di luar radius', [
-        //     'karyawan_id' => $karyawan->id,
-        //     'jarak' => $jarak,
-        //     'radius' => $project->radius,
-        //     'latitude' => $request->latitude,
-        //     'longitude' => $request->longitude,
-        // ]);
+        
+        
+        
+        
+        
+        
+        
         
         return response()->json([
             'success' => false,
@@ -581,21 +575,21 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         ], 400);
     }
 
-    // ✅ Upload foto
+    
     $fotoPath = $this->uploadDanKompresFoto($request->file('foto'), $karyawan->id);
 
-    // ✅ Waktu dan tanggal saat ini
+    
     $waktuSekarang = Carbon::now();
     $tanggal = $jadwal->tanggal instanceof Carbon 
         ? $jadwal->tanggal 
         : Carbon::parse($jadwal->tanggal);
 
-    // ✅ CRITICAL: Status presensi di hari libur
+    
     $status = 'hadir';
     $keterangan = null;
 
     if ($request->tipe === 'masuk') {
-        // Presensi masuk di hari libur = HADIR (tidak ada terlambat)
+        
         $status = 'hadir';
         $keterangan = 'Presensi masuk di hari libur';
         
@@ -603,7 +597,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             $keterangan .= ' (Jabatan dikecualikan dari radius)';
         }
     } else {
-        // Presensi pulang di hari libur = LEMBUR PENDING
+        
         $status = 'lembur_pending';
         $keterangan = 'Presensi pulang di hari libur - menunggu konfirmasi lembur';
         
@@ -612,9 +606,9 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         }
     }
 
-    // ✅ CRITICAL: UPDATE atau CREATE presensi
+    
     if ($request->tipe === 'masuk' && $existingMasuk) {
-        // Update existing presensi masuk (yang statusnya libur)
+        
         $existingMasuk->update([
             'status' => $status,
             'waktu' => $waktuSekarang->format('H:i:s'),
@@ -626,15 +620,15 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         
         $presensi = $existingMasuk->fresh();
         
-        // Log::info('✅ Presensi masuk hari libur updated', [
-        //     'presensi_id' => $presensi->id,
-        //     'latitude' => $presensi->latitude,
-        //     'longitude' => $presensi->longitude,
-        //     'waktu' => $presensi->waktu,
-        // ]);
+        
+        
+        
+        
+        
+        
         
     } elseif ($request->tipe === 'pulang' && $existingPulang) {
-        // Update existing presensi pulang (yang statusnya libur)
+        
         $existingPulang->update([
             'status' => $status,
             'waktu' => $waktuSekarang->format('H:i:s'),
@@ -646,15 +640,15 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         
         $presensi = $existingPulang->fresh();
         
-        // Log::info('✅ Presensi pulang hari libur updated', [
-        //     'presensi_id' => $presensi->id,
-        //     'latitude' => $presensi->latitude,
-        //     'longitude' => $presensi->longitude,
-        //     'waktu' => $presensi->waktu,
-        // ]);
+        
+        
+        
+        
+        
+        
         
     } else {
-        // Create new presensi (fallback - seharusnya tidak terjadi)
+        
         $presensi = Presensi::create([
             'jadwal_karyawan_id' => $jadwal->id,
             'tanggal' => $tanggal->format('Y-m-d'),
@@ -667,31 +661,31 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             'keterangan' => $keterangan
         ]);
         
-        // Log::info('✅ Presensi hari libur created (new)', [
-        //     'presensi_id' => $presensi->id,
-        //     'latitude' => $presensi->latitude,
-        //     'longitude' => $presensi->longitude,
-        //     'waktu' => $presensi->waktu,
-        // ]);
+        
+        
+        
+        
+        
+        
     }
 
     DB::commit();
 
-    // ✅ Refresh data untuk memastikan semua field tersimpan
+    
     $presensi = Presensi::find($presensi->id);
 
-    // Log::info('✅ Presensi hari libur berhasil disimpan', [
-    //     'presensi_id' => $presensi->id,
-    //     'karyawan_id' => $karyawan->id,
-    //     'tipe' => $presensi->tipe,
-    //     'status' => $presensi->status,
-    //     'waktu' => $presensi->waktu,
-    //     'latitude' => $presensi->latitude,
-    //     'longitude' => $presensi->longitude,
-    //     'foto' => $presensi->foto ? 'YES' : 'NO',
-    //     'is_jabatan_excluded' => $isJabatanExcluded,
-    //     'jarak' => round($jarak, 2),
-    // ]);
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     return response()->json([
         'success' => true,
@@ -717,9 +711,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
     ], 201);
 }
 
-    /**
-     * Submit presensi (masuk atau pulang) - skip validasi radius untuk jabatan excluded
-     */
+    
     public function submitPresensi(Request $request)
 {
     $request->validate([
@@ -735,7 +727,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         $karyawan = $request->user();
         $jadwal = JadwalKaryawan::findOrFail($request->jadwal_id);
 
-        // Validasi karyawan memiliki jadwal
+        
         $jadwalKaryawan = JadwalKaryawan::whereHas('karyawanProject', function($q) use ($karyawan) {
                 $q->where('karyawan_id', $karyawan->id);
             })
@@ -753,12 +745,12 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         $project = $jadwalKaryawan->karyawanProject->project;
         $isLibur = strtoupper($jadwalKaryawan->shift_code) === 'L';
 
-        // ✅ CRITICAL: Handle presensi di hari libur
+        
         if ($isLibur) {
             return $this->submitPresensiHariLibur($request, $jadwalKaryawan, $karyawan, $project);
         }
 
-        // Cek presensi existing
+        
         $existing = Presensi::whereHas('jadwalKaryawan', function($q) use ($karyawan, $jadwal) {
                 $q->whereHas('karyawanProject', function($q2) use ($karyawan) {
                     $q2->where('karyawan_id', $karyawan->id);
@@ -778,17 +770,17 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
 
         $project = $jadwalKaryawan->karyawanProject->project;
         
-        // ✅ CRITICAL: Check if jabatan excluded
+        
         $isJabatanExcluded = $project->isJabatanExcluded($karyawan->jabatan_id);
         
-        // Log::info('Submit Presensi Debug', [
-        //     'karyawan_id' => $karyawan->id,
-        //     'jabatan_id' => $karyawan->jabatan_id,
-        //     'is_jabatan_excluded' => $isJabatanExcluded,
-        //     'tipe' => $request->tipe,
-        // ]);
         
-        // Parse lokasi JSON
+        
+        
+        
+        
+        
+        
+        
         $projectLocation = is_string($project->lokasi) 
             ? json_decode($project->lokasi, true) 
             : $project->lokasi;
@@ -803,13 +795,13 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             $projectLon
         );
 
-        // ✅ CRITICAL: Skip radius validation if jabatan excluded
+        
         if (!$isJabatanExcluded && $jarak > $project->radius) {
-            // Log::warning('Presensi ditolak - di luar radius', [
-            //     'jarak' => $jarak,
-            //     'radius' => $project->radius,
-            //     'is_jabatan_excluded' => $isJabatanExcluded
-            // ]);
+            
+            
+            
+            
+            
             
             return response()->json([
                 'success' => false,
@@ -822,7 +814,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             ], 400);
         }
 
-        // Upload foto
+        
         $fotoPath = $this->uploadDanKompresFoto($request->file('foto'), $karyawan->id);
 
         $shift = ShiftProject::where('project_id', $project->id)
@@ -838,7 +830,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         $status = 'hadir';
         $keterangan = null;
 
-        // Logika presensi masuk
+        
         if ($request->tipe === 'masuk') {
             $waktuMulaiShift = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $shift->waktu_mulai);
             $waktuToleransi = $project->waktu_toleransi ?? 0;
@@ -863,7 +855,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
                 }
             }
         } else {
-            // Logika presensi pulang
+            
             $waktuSelesaiShift = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $shift->waktu_selesai);
             $batasToleransiPulangCepat = $waktuSelesaiShift->copy()->subMinutes(45);
             $batasTepat = $waktuSelesaiShift->copy()->addMinutes(15);
@@ -886,7 +878,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             }
         }
 
-        // Simpan presensi
+        
         $presensi = Presensi::create([
             'jadwal_karyawan_id' => $jadwalKaryawan->id,
             'tanggal' => $tanggal->format('Y-m-d'),
@@ -901,14 +893,14 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
 
         DB::commit();
 
-        // Log::info('✅ Presensi berhasil disimpan', [
-        //     'presensi_id' => $presensi->id,
-        //     'karyawan_id' => $karyawan->id,
-        //     'tipe' => $request->tipe,
-        //     'status' => $status,
-        //     'is_jabatan_excluded' => $isJabatanExcluded,
-        //     'jarak' => round($jarak, 2),
-        // ]);
+        
+        
+        
+        
+        
+        
+        
+        
 
         return response()->json([
             'success' => true,
@@ -934,11 +926,11 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             Storage::delete('public/' . $fotoPath);
         }
 
-        // Log::error('Submit presensi error: ' . $e->getMessage(), [
-        //     'karyawan_id' => $karyawan->id ?? null,
-        //     'jadwal_id' => $request->jadwal_id ?? null,
-        //     'trace' => $e->getTraceAsString()
-        // ]);
+        
+        
+        
+        
+        
         
         return response()->json([
             'success' => false,
@@ -947,23 +939,23 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
     }
 }
 
-    // ========== HELPER METHODS ==========
+    
 
-    // private function hitungJarak($lat1, $lon1, $lat2, $lon2)
-    // {
-    //     $earthRadius = 6371000; // meter
+    
+    
+    
 
-    //     $dLat = deg2rad($lat2 - $lat1);
-    //     $dLon = deg2rad($lon2 - $lon1);
+    
+    
 
-    //     $a = sin($dLat / 2) * sin($dLat / 2) +
-    //          cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-    //          sin($dLon / 2) * sin($dLon / 2);
+    
+    
+    
 
-    //     $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+    
 
-    //     return $earthRadius * $c;
-    // }
+    
+    
 
     private function uploadDanKompresFoto($file, $karyawanId)
     {
@@ -1029,7 +1021,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             return $relativePath . '/' . $fileName;
             
         } catch (\Exception $e) {
-            // Log::error('Upload foto error: ' . $e->getMessage());
+            
             throw new \Exception('Gagal mengupload foto: ' . $e->getMessage());
         }
     }
@@ -1068,9 +1060,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
         return $statusMap[$status] ?? $status;
     }
 
-    /**
- * Get history presensi karyawan
- */
+    
     public function getHistory(Request $request)
     {
         $request->validate([
@@ -1092,7 +1082,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             $startDate = $request->start_date;
             $endDate = $request->end_date;
 
-            // Get jadwal dalam periode
+            
             $jadwals = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
                                      ->where('tanggal', '>=', $startDate)
                                      ->where('tanggal', '<=', $endDate)
@@ -1106,7 +1096,7 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
                 $tanggal = $jadwal->tanggal;
                 $shiftCode = $jadwal->shift_code;
                 
-                // Get presensi
+                
                 $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
                                          ->where('tipe', 'masuk')
                                          ->first();
@@ -1115,48 +1105,48 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
                                           ->where('tipe', 'pulang')
                                           ->first();
 
-                // ✅ CRITICAL: Tentukan status dan clickability
-                $status = 'alpa'; // default
+                
+                $status = 'alpa'; 
                 $isClickable = false;
                 
-                // ✅ CASE 1: Hari libur
+                
                 if (strtoupper($shiftCode) === 'L') {
-                    // Cek apakah ada presensi aktual di hari libur
+                    
                     if ($presensiMasuk && 
                         $presensiMasuk->status !== 'libur' && 
                         $presensiMasuk->waktu !== null) {
-                        // Ada presensi aktual di hari libur
+                        
                         $status = $presensiMasuk->status;
-                        $isClickable = true; // ✅ CLICKABLE - ada detail presensi
+                        $isClickable = true; 
                     } else {
-                        // Murni libur, tidak ada presensi
+                        
                         $status = 'libur';
-                        $isClickable = false; // ❌ NOT CLICKABLE - tidak ada detail
+                        $isClickable = false; 
                     }
                 }
-                // ✅ CASE 2: Ada presensi masuk
+                
                 elseif ($presensiMasuk) {
                     $status = $presensiMasuk->status;
                     
-                    // Clickable jika ada waktu presensi (bukan alpa/izin/libur)
+                    
                     if (!in_array($presensiMasuk->status, ['alpa', 'izin', 'libur'])) {
-                        $isClickable = true; // ✅ CLICKABLE - ada detail presensi (hadir/terlambat)
+                        $isClickable = true; 
                     } else {
-                        $isClickable = false; // ❌ NOT CLICKABLE - alpa/izin tidak ada detail
+                        $isClickable = false; 
                     }
                 }
-                // ✅ CASE 3: Tidak ada presensi sama sekali
+                
                 else {
                     $status = 'alpa';
-                    $isClickable = false; // ❌ NOT CLICKABLE - tidak ada detail
+                    $isClickable = false; 
                 }
 
-                // Get shift detail
+                
                 $shift = ShiftProject::where('project_id', $project->id)
                                      ->where('kode', $shiftCode)
                                      ->first();
 
-                // ✅ Build result item - ALWAYS include in result
+                
                 $result[] = [
                     'id' => $jadwal->id,
                     'tanggal' => $tanggal,
@@ -1222,15 +1212,15 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
                                 : url('storage/' . $presensiPulang->foto))
                             : null
                     ] : null,
-                    'is_clickable' => $isClickable // ✅ NEW FIELD
+                    'is_clickable' => $isClickable 
                 ];
             }
 
-            // Log::info('✅ History loaded', [
-            //     'total_items' => count($result),
-            //     'clickable' => collect($result)->where('is_clickable', true)->count(),
-            //     'not_clickable' => collect($result)->where('is_clickable', false)->count()
-            // ]);
+            
+            
+            
+            
+            
 
             return response()->json([
                 'success' => true,
@@ -1238,8 +1228,8 @@ private function hitungJarak($lat1, $lon1, $lat2, $lon2)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get history error: ' . $e->getMessage());
-            // Log::error($e->getTraceAsString());
+            
+            
             
             return response()->json([
                 'success' => false,
@@ -1270,9 +1260,7 @@ private function getHari($tanggal)
         ];
     }
 
-    /**
-     * Get rekap presensi harian by project and date
-     */
+    
     public function getRekapHarian(Request $request)
     {
         $request->validate([
@@ -1284,10 +1272,10 @@ private function getHari($tanggal)
             $projectId = $request->project_id;
             $tanggal = $request->tanggal;
 
-            // Get project info with shifts
+            
             $project = Project::with('shiftProjects')->findOrFail($projectId);
 
-            // ✅ CREATE SHIFT MAP for quick case-insensitive lookup
+            
             $shiftMap = [];
             foreach ($project->shiftProjects as $shift) {
                 $shiftMap[strtoupper($shift->kode)] = [
@@ -1297,12 +1285,12 @@ private function getHari($tanggal)
                 ];
             }
 
-            // Log::info('🔍 Rekap Harian Shift Map', [
-            //     'available_shifts' => array_keys($shiftMap),
-            //     'tanggal' => $tanggal
-            // ]);
+            
+            
+            
+            
 
-            // Get all jadwal for this project on this date
+            
             $jadwals = JadwalKaryawan::with([
                 'karyawanProject.karyawan.divisi',
                 'karyawanProject.karyawan.jabatan',
@@ -1338,7 +1326,7 @@ private function getHari($tanggal)
                 $karyawan = $jadwal->karyawanProject->karyawan;
                 $shiftCode = $jadwal->shift_code;
 
-                // ✅ Get shift detail using case-insensitive lookup
+                
                 $shiftCodeUpper = strtoupper($shiftCode);
                 $shift = null;
                 $shiftDisplay = 'Libur';
@@ -1347,31 +1335,31 @@ private function getHari($tanggal)
                     $shift = $shiftMap[$shiftCodeUpper];
                     $shiftDisplay = "{$shift['kode']} ({$shift['waktu_mulai']} - {$shift['waktu_selesai']})";
                 } elseif ($shiftCodeUpper !== 'L') {
-                    // Log::warning('⚠️ Shift not found in map', [
-                    //     'shift_code' => $shiftCode,
-                    //     'shift_code_upper' => $shiftCodeUpper,
-                    //     'available_shifts' => array_keys($shiftMap)
-                    // ]);
+                    
+                    
+                    
+                    
+                    
                 }
 
-                // Get presensi masuk
+                
                 $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
                                          ->where('tipe', 'masuk')
                                          ->first();
 
-                // Get presensi pulang
+                
                 $presensiPulang = Presensi::where('jadwal_karyawan_id', $jadwal->id)
                                           ->where('tipe', 'pulang')
                                           ->first();
 
-                // Build data
+                
                 $item = [
                     'id' => $jadwal->id,
                     'nik' => $karyawan->nik,
                     'nama' => $karyawan->nama,
                     'divisi' => $karyawan->divisi ? $karyawan->divisi->nama : '-',
                     'jabatan' => $karyawan->jabatan->nama ?? '-',
-                    'shift' => $shiftDisplay, // ✅ Use formatted shift display
+                    'shift' => $shiftDisplay, 
                     'shift_code' => $shiftCode,
                     'presensi_masuk' => $presensiMasuk ? [
                         'id' => $presensiMasuk->id,
@@ -1401,15 +1389,15 @@ private function getHari($tanggal)
                     ] : null
                 ];
 
-                // Statistik masuk
+                
                 $statusMasuk = $presensiMasuk ? $presensiMasuk->status : (strtoupper($shiftCode) === 'L' ? 'libur' : 'alpa');
                 if (isset($statistik['masuk'][$statusMasuk])) {
                     $statistik['masuk'][$statusMasuk]++;
                 }
 
-                // Statistik pulang
+                
                 $statusPulang = $presensiPulang ? $presensiPulang->status : (strtoupper($shiftCode) === 'L' ? 'libur' : 'alpa');
-                // Handle lembur_pending as separate counter
+                
                 if ($statusPulang === 'lembur_pending') {
                     $statistik['pulang']['lembur_pending']++;
                 } elseif (isset($statistik['pulang'][$statusPulang])) {
@@ -1434,7 +1422,7 @@ private function getHari($tanggal)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get rekap harian error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -1443,9 +1431,7 @@ private function getHari($tanggal)
         }
     }
 
-    /**
-     * Update status presensi
-     */
+    
     public function updateStatus(Request $request, $presensiId)
 {
     $request->validate([
@@ -1468,13 +1454,13 @@ private function getHari($tanggal)
         $notificationService = app(\App\Services\NotificationService::class);
 
         if ($newStatus === 'lembur') {
-            // Lembur dikonfirmasi
+            
             $notificationService->notifyKaryawanLemburDikonfirmasi($presensi);
         } elseif ($oldStatus === 'lembur_pending' && $newStatus !== 'lembur') {
-            // Lembur ditolak
+            
             $notificationService->notifyKaryawanLemburDitolak($presensi, $keterangan);
         } else {
-            // Status presensi normal diupdate
+            
             $notificationService->notifyKaryawanPresensiDiupdate($presensi, $newStatus, $oldStatus, $keterangan);
         }
 
@@ -1485,7 +1471,7 @@ private function getHari($tanggal)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Update status error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,
@@ -1494,9 +1480,7 @@ private function getHari($tanggal)
     }
 }
 
-    /**
-     * Konfirmasi lembur
-     */
+    
     public function konfirmasiLembur($presensiId)
     {
         try {
@@ -1521,7 +1505,7 @@ private function getHari($tanggal)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Konfirmasi lembur error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -1530,7 +1514,7 @@ private function getHari($tanggal)
         }
     }
 
-    // Helper methods
+    
     private function generateKeterangan($status, $tipe)
     {
         $keteranganMap = [
@@ -1585,25 +1569,25 @@ public function getPresensiData(Request $request)
             $projectStartDate = Carbon::parse($tanggalMulaiProject)->format('Y-m-d');
         }
         
-        // ✅ MONTHLY STATS: From start of current month to today
+        
         $currentMonth = Carbon::now();
         $startOfMonth = $currentMonth->copy()->startOfMonth()->format('Y-m-d');
         $endDate = $today;
         
-        // If project started after month start, use project start date
+        
         if ($projectStartDate > $startOfMonth) {
             $startDate = $projectStartDate;
         } else {
             $startDate = $startOfMonth;
         }
         
-        // Log::info('📅 Homepage Monthly Stats', [
-        //     'current_month' => $currentMonth->format('Y-m'),
-        //     'start_of_month' => $startOfMonth,
-        //     'project_start' => $projectStartDate,
-        //     'stats_start_date' => $startDate,
-        //     'stats_end_date' => $endDate,
-        // ]);
+        
+        
+        
+        
+        
+        
+        
         
         $statistik = $this->getStatistikMonthly($karyawanProject->id, $startDate, $endDate);
 
@@ -1719,8 +1703,8 @@ public function getPresensiData(Request $request)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Get presensi data error: ' . $e->getMessage());
-        // Log::error($e->getTraceAsString());
+        
+        
         
         return response()->json([
             'success' => false,
@@ -1759,14 +1743,14 @@ private function getStatistikMonthly($karyawanProjectId, $startDate, $endDate)
                      ->whereNotIn('status', ['alpa', 'izin', 'libur'])
                      ->count();
 
-    // Log::info('✅ Monthly Statistik', [
-    //     'karyawan_project_id' => $karyawanProjectId,
-    //     'start_date' => $startDate,
-    //     'end_date' => $endDate,
-    //     'hadir' => $hadir,
-    //     'izin' => $izin,
-    //     'alpa' => $alpa
-    // ]);
+    
+    
+    
+    
+    
+    
+    
+    
 
     return [
         'hadir' => $hadir,
@@ -1775,13 +1759,10 @@ private function getStatistikMonthly($karyawanProjectId, $startDate, $endDate)
     ];
 }
 
-/**
- * FIXED: Hitung statistik total dengan query yang benar
- * Mengikuti logika SQL yang diberikan user
- */
+
 private function getStatistikTotal($karyawanProjectId, $startDate, $endDate)
 {
-    // Get all jadwal IDs untuk periode ini
+    
     $jadwalIds = JadwalKaryawan::where('karyawan_project_id', $karyawanProjectId)
                                ->where('tanggal', '>=', $startDate)
                                ->where('tanggal', '<=', $endDate)
@@ -1795,36 +1776,36 @@ private function getStatistikTotal($karyawanProjectId, $startDate, $endDate)
         ];
     }
 
-    // CRITICAL: Hitung berdasarkan tipe=masuk saja (sesuai SQL user)
     
-    // ALPA: status = 'alpa' AND tipe = 'masuk'
+    
+    
     $alpa = Presensi::whereIn('jadwal_karyawan_id', $jadwalIds)
                     ->where('tipe', 'masuk')
                     ->where('status', 'alpa')
                     ->count();
 
-    // IZIN: status = 'izin' AND tipe = 'masuk'
+    
     $izin = Presensi::whereIn('jadwal_karyawan_id', $jadwalIds)
                     ->where('tipe', 'masuk')
                     ->where('status', 'izin')
                     ->count();
 
-    // HADIR: status NOT IN ('alpa', 'izin', 'libur') AND tipe = 'masuk'
-    // Ini mencakup: hadir, terlambat, dll
+    
+    
     $hadir = Presensi::whereIn('jadwal_karyawan_id', $jadwalIds)
                      ->where('tipe', 'masuk')
                      ->whereNotIn('status', ['alpa', 'izin', 'libur'])
                      ->count();
 
-    // Log::info('Statistik Presensi Debug', [
-    //     'karyawan_project_id' => $karyawanProjectId,
-    //     'start_date' => $startDate,
-    //     'end_date' => $endDate,
-    //     'total_jadwal' => $jadwalIds->count(),
-    //     'hadir' => $hadir,
-    //     'izin' => $izin,
-    //     'alpa' => $alpa
-    // ]);
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     return [
         'hadir' => $hadir,
@@ -1833,15 +1814,8 @@ private function getStatistikTotal($karyawanProjectId, $startDate, $endDate)
     ];
 }
 
-/**
- * Get rekap presensi bulanan by project
- * Shows all calendar days in period, with strips for days without presensi
- */
-/**
- * Get rekap presensi bulanan by project
- * Shows all calendar days in period, with strips for days without presensi
- * Izin dikelompokkan berdasarkan kategori_izin
- */
+
+
 public function getRekapBulanan(Request $request)
 {
     $request->validate([
@@ -1853,36 +1827,36 @@ public function getRekapBulanan(Request $request)
         $projectId = $request->project_id;
         $bulan = $request->bulan;
 
-        // Get project info
+        
         $project = Project::with('shiftProjects')->findOrFail($projectId);
 
-        // Calculate EXACT period based on project start
+        
         $projectStart = Carbon::parse($project->tanggal_mulai);
         $requestedDate = Carbon::parse($bulan . '-01');
         
-        // Calculate how many complete months from project start to requested month
+        
         $yearsDiff = $requestedDate->year - $projectStart->year;
         $monthsDiff = $requestedDate->month - $projectStart->month;
         $totalMonthsDiff = ($yearsDiff * 12) + $monthsDiff;
         
-        // Period always starts on same day as project start
+        
         $periodStart = $projectStart->copy()->addMonths($totalMonthsDiff);
         
-        // Period end = 1 day before next period starts
+        
         $periodEnd = $periodStart->copy()->addMonth()->subDay();
         
         $startDate = $periodStart->format('Y-m-d');
         $endDate = $periodEnd->format('Y-m-d');
 
-        // Log::info('Rekap Bulanan - Period Calculation', [
-        //     'project_start' => $projectStart->format('Y-m-d'),
-        //     'requested_month' => $bulan,
-        //     'total_months_diff' => $totalMonthsDiff,
-        //     'period_start' => $startDate,
-        //     'period_end' => $endDate
-        // ]);
+        
+        
+        
+        
+        
+        
+        
 
-        // Generate ALL days in period (for calendar display)
+        
         $daysInPeriod = [];
         $currentDate = clone $periodStart;
         while ($currentDate->lessThanOrEqualTo($periodEnd)) {
@@ -1896,7 +1870,7 @@ public function getRekapBulanan(Request $request)
             $currentDate->addDay();
         }
 
-        // Get karyawan yang aktif di project
+        
         $karyawanProjects = KaryawanProject::with(['karyawan.divisi', 'karyawan.jabatan'])
             ->where('project_id', $projectId)
             ->where('status', 'aktif')
@@ -1926,7 +1900,7 @@ public function getRekapBulanan(Request $request)
         foreach ($karyawanProjects as $kp) {
             $karyawan = $kp->karyawan;
 
-            // Get presensi yang ada untuk periode ini
+            
             $presensis = Presensi::whereHas('jadwalKaryawan', function($q) use ($kp) {
                     $q->where('karyawan_project_id', $kp->id);
                 })
@@ -1934,48 +1908,48 @@ public function getRekapBulanan(Request $request)
                 ->where('tanggal', '<=', $endDate)
                 ->get();
 
-            // Group presensi by date untuk lookup cepat
+            
             $presensisByDate = $presensis->groupBy(function($item) {
                 return Carbon::parse($item->tanggal)->format('Y-m-d');
             });
 
             $dailyData = [];
             
-            // UPDATED: Rekap dengan kategori izin yang detail
+            
             $rekap = [
                 'hadir' => 0,
-                'sakit' => 0,      // Izin sakit
-                'izin' => 0,       // Izin biasa
-                'cuti' => 0,       // Akumulasi cuti tahunan + cuti khusus
+                'sakit' => 0,      
+                'izin' => 0,       
+                'cuti' => 0,       
                 'alpa' => 0,
                 'libur' => 0
             ];
 
-            // Loop semua hari dalam periode (calendar view)
+            
             foreach ($daysInPeriod as $dayInfo) {
                 $tanggal = $dayInfo['date'];
                 $day = $dayInfo['day'];
 
-                // Cek apakah ada presensi untuk tanggal ini
+                
                 if (!isset($presensisByDate[$tanggal])) {
-                    // Tidak ada presensi = strip
+                    
                     $dailyData[$day] = ['-'];
                     continue;
                 }
 
-                // Ada presensi untuk tanggal ini
+                
                 $dailyPresensis = $presensisByDate[$tanggal];
                 $presensiMasuk = $dailyPresensis->firstWhere('tipe', 'masuk');
                 $presensiPulang = $dailyPresensis->firstWhere('tipe', 'pulang');
 
                 $statusList = [];
 
-                // Cek libur
+                
                 if ($presensiMasuk && $presensiMasuk->status === 'libur') {
                     $statusList[] = 'L';
                     $rekap['libur']++;
                 }
-                // UPDATED: Cek izin dengan kategori
+                
                 elseif ($presensiMasuk && $presensiMasuk->status === 'izin') {
                     $kategoriIzin = $presensiMasuk->kategori_izin;
                     
@@ -1997,18 +1971,18 @@ public function getRekapBulanan(Request $request)
                             $rekap['cuti']++;
                             break;
                         default:
-                            // Fallback jika kategori tidak dikenali
+                            
                             $statusList[] = 'I';
                             $rekap['izin']++;
                             break;
                     }
                 }
-                // Cek alpa
+                
                 elseif ($presensiMasuk && $presensiMasuk->status === 'alpa') {
                     $statusList[] = 'A';
                     $rekap['alpa']++;
                 }
-                // Status normal (hadir/terlambat)
+                
                 else {
                     if ($presensiMasuk) {
                         if ($presensiMasuk->status === 'terlambat') {
@@ -2019,7 +1993,7 @@ public function getRekapBulanan(Request $request)
                         $rekap['hadir']++;
                     }
 
-                    // Cek status pulang
+                    
                     if ($presensiPulang) {
                         if ($presensiPulang->status === 'lembur' || $presensiPulang->status === 'lembur_pending') {
                             $statusList[] = 'LB';
@@ -2031,7 +2005,7 @@ public function getRekapBulanan(Request $request)
                     }
                 }
 
-                // Jika tidak ada status sama sekali, set strip
+                
                 if (empty($statusList)) {
                     $statusList[] = '-';
                 }
@@ -2081,8 +2055,8 @@ public function getRekapBulanan(Request $request)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Get rekap bulanan error: ' . $e->getMessage());
-        // Log::error($e->getTraceAsString());
+        
+        
         
         return response()->json([
             'success' => false,
@@ -2114,27 +2088,27 @@ public function getStatistikPeriode(Request $request)
             ], 404);
         }
 
-        $bulan = $request->bulan; // Format: yyyy-MM
+        $bulan = $request->bulan; 
         
-        // ✅ Get project start date from database
+        
         $projectId = $karyawanProject->project_id;
         $rawTanggalMulai = \DB::selectOne("SELECT tanggal_mulai FROM projects WHERE id = ?", [$projectId])->tanggal_mulai;
         
         $projectStart = Carbon::createFromFormat('Y-m-d', $rawTanggalMulai);
         
-        // Parse requested month (format: yyyy-MM)
+        
         $requestedYear = (int)substr($bulan, 0, 4);
         $requestedMonth = (int)substr($bulan, 5, 2);
         
-        // Log::info('📅 Period Calculation Start', [
-        //     'project_start' => $projectStart->format('Y-m-d'),
-        //     'requested_bulan' => $bulan,
-        //     'project_start_day' => $projectStart->day,
-        // ]);
         
-        // ✅ SIMPLE CALCULATION: Period starts on project start day
-        // For yyyy-MM request, period is: yyyy-MM-DD to yyyy-(MM+1)-(DD-1)
-        // where DD is project start day
+        
+        
+        
+        
+        
+        
+        
+        
         
         $periodStart = Carbon::create(
             $requestedYear,
@@ -2143,20 +2117,20 @@ public function getStatistikPeriode(Request $request)
             0, 0, 0
         );
         
-        // Period end = 1 day before next period starts
+        
         $periodEnd = $periodStart->copy()->addMonth()->subDay();
         
         $startDate = $periodStart->format('Y-m-d');
         $endDate = $periodEnd->format('Y-m-d');
 
-        // Log::info('✅ Calculated Period', [
-        //     'requested_month' => $bulan,
-        //     'period_start' => $startDate,
-        //     'period_end' => $endDate,
-        //     'days_in_period' => $periodStart->diffInDays($periodEnd) + 1
-        // ]);
+        
+        
+        
+        
+        
+        
 
-        // Get jadwal IDs untuk periode ini
+        
         $jadwalIds = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
                                    ->where('tanggal', '>=', $startDate)
                                    ->where('tanggal', '<=', $endDate)
@@ -2184,17 +2158,17 @@ public function getStatistikPeriode(Request $request)
             ]);
         }
 
-        // Get all presensi untuk periode ini
+        
         $presensis = Presensi::whereIn('jadwal_karyawan_id', $jadwalIds)->get();
 
-        // Hitung statistik berdasarkan tipe presensi masuk
+        
         $presensiMasuk = $presensis->where('tipe', 'masuk');
         
         $hadir = $presensiMasuk->whereNotIn('status', ['alpa', 'izin', 'libur'])->count();
         $izinTotal = $presensiMasuk->where('status', 'izin')->count();
         $alpa = $presensiMasuk->where('status', 'alpa')->count();
 
-        // Hitung SAKIT dan CUTI dari pengajuan_izins yang disetujui
+        
         $sakit = 0;
         $cuti = 0;
         
@@ -2234,7 +2208,7 @@ public function getStatistikPeriode(Request $request)
             }
         }
 
-        // Hitung dari presensi pulang
+        
         $presensiPulang = $presensis->where('tipe', 'pulang');
         
         $lembur = $presensiPulang->whereIn('status', ['lembur', 'lembur_pending'])->count();
@@ -2242,14 +2216,14 @@ public function getStatistikPeriode(Request $request)
         $pulangCepat = $presensiPulang->where('status', 'pulang_cepat')->count();
         $tidakPresensiPulang = $presensiPulang->where('status', 'tidak_presensi_pulang')->count();
 
-        // Log::info('✅ Statistik Result', [
-        //     'period' => "$startDate to $endDate",
-        //     'hadir' => $hadir,
-        //     'izin' => $izinTotal,
-        //     'alpa' => $alpa,
-        //     'sakit' => $sakit,
-        //     'cuti' => $cuti,
-        // ]);
+        
+        
+        
+        
+        
+        
+        
+        
 
         return response()->json([
             'success' => true,
@@ -2272,8 +2246,8 @@ public function getStatistikPeriode(Request $request)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Get statistik periode error: ' . $e->getMessage());
-        // Log::error($e->getTraceAsString());
+        
+        
         
         return response()->json([
             'success' => false,
@@ -2291,7 +2265,7 @@ public function getJadwalBulan(Request $request)
     try {
         $user = $request->user();
         
-        // Get karyawan project aktif
+        
         $karyawanProject = KaryawanProject::with(['project.shiftProjects', 'karyawan'])
             ->where('karyawan_id', $user->id)
             ->where('status', 'aktif')
@@ -2310,7 +2284,7 @@ public function getJadwalBulan(Request $request)
         $project = $karyawanProject->project;
         $karyawanId = $karyawanProject->karyawan_id;
         
-        // Parse bulan parameter
+        
         $bulanParam = $request->bulan;
         $year = substr($bulanParam, 0, 4);
         $month = substr($bulanParam, 5, 2);
@@ -2319,67 +2293,67 @@ public function getJadwalBulan(Request $request)
         $lastDay = date('t', strtotime($startOfMonth));
         $endOfMonth = "$year-$month-$lastDay";
 
-        // Log::info('🔍 getJadwalBulan Debug', [
-        //     'bulan' => $bulanParam,
-        //     'start' => $startOfMonth,
-        //     'end' => $endOfMonth,
-        //     'project_id' => $project->id,
-        //     'karyawan_project_id' => $karyawanProject->id
-        // ]);
+        
+        
+        
+        
+        
+        
+        
 
-        // ✅ Load shifts explicitly
+        
         $project->load('shiftProjects');
         
-        // Create shift map for quick lookup
+        
         $shiftMap = [];
         foreach ($project->shiftProjects as $shift) {
             $shiftMap[strtoupper($shift->kode)] = [
-                'waktu_mulai' => substr($shift->waktu_mulai, 0, 5), // HH:mm format
+                'waktu_mulai' => substr($shift->waktu_mulai, 0, 5), 
                 'waktu_selesai' => substr($shift->waktu_selesai, 0, 5)
             ];
         }
 
-        // Log::info('📋 Shift Map', [
-        //     'shifts' => $shiftMap,
-        //     'total_shifts' => count($shiftMap),
-        //     'raw_shifts' => $project->shiftProjects->pluck('kode')->toArray()
-        // ]);
+        
+        
+        
+        
+        
 
-        // Query dengan filter bulan di database level
+        
         $jadwals = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
             ->whereDate('tanggal', '>=', $startOfMonth)
             ->whereDate('tanggal', '<=', $endOfMonth)
             ->orderBy('tanggal', 'asc')
             ->get()
             ->map(function($jadwal) use ($shiftMap, $karyawanId) {
-                // Parse tanggal untuk formatting
+                
                 $date = new \DateTime($jadwal->tanggal);
                 $dayOfWeek = (int) $date->format('w');
                 $isWeekend = in_array($dayOfWeek, [0, 6]);
                 
-                // Get shift code (uppercase untuk matching)
+                
                 $shiftCodeUpper = strtoupper($jadwal->shift_code);
                 
-                // Determine waktu_mulai dan waktu_selesai
+                
                 $waktuMulai = null;
                 $waktuSelesai = null;
                 
                 if ($shiftCodeUpper !== 'L') {
-                    // Cari di shift map
+                    
                     if (isset($shiftMap[$shiftCodeUpper])) {
                         $waktuMulai = $shiftMap[$shiftCodeUpper]['waktu_mulai'];
                         $waktuSelesai = $shiftMap[$shiftCodeUpper]['waktu_selesai'];
                     } 
-                    // else {
-                    //     Log::warning('⚠️ Shift not found in map', [
-                    //         'shift_code' => $jadwal->shift_code,
-                    //         'shift_code_upper' => $shiftCodeUpper,
-                    //         'available_shifts' => array_keys($shiftMap)
-                    //     ]);
-                    // }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                 }
                 
-                // Check tukar shift info
+                
                 $tukarShiftInfo = null;
                 $isDitukar = $jadwal->isDitukar();
                 
@@ -2412,21 +2386,21 @@ public function getJadwalBulan(Request $request)
                     'tukar_shift_info' => $tukarShiftInfo,
                 ];
                 
-                // Debug log untuk item pertama
-                // static $firstLog = true;
-                // if ($firstLog) {
-                //     Log::info('📅 First Jadwal Item', $result);
-                //     $firstLog = false;
-                // }
+                
+                
+                
+                
+                
+                
                 
                 return $result;
             });
 
-        // Log::info('✅ Total jadwals', ['count' => $jadwals->count()]);
+        
 
         return response()->json([
             'success' => true,
-            'data' => $jadwals->values(), // Reset array keys
+            'data' => $jadwals->values(), 
             'period_info' => [
                 'start_date' => $startOfMonth,
                 'end_date' => $endOfMonth,
@@ -2443,8 +2417,8 @@ public function getJadwalBulan(Request $request)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('❌ Get jadwal bulan error: ' . $e->getMessage());
-        // Log::error($e->getTraceAsString());
+        
+        
         
         return response()->json([
             'success' => false,
@@ -2453,9 +2427,7 @@ public function getJadwalBulan(Request $request)
     }
 }
 
-/**
- * Helper functions untuk formatting
- */
+
 private function getIndonesianDay($dayOfWeek)
 {
     $days = [
@@ -2480,12 +2452,10 @@ private function getIndonesianMonth($month)
     return $months[$month] ?? '';
 }
 
-/**
- * Check apakah jadwal ini hasil tukar shift yang disetujui
- */
+
 public function isDitukar()
 {
-    // Cek apakah jadwal ini terlibat dalam tukar shift yang disetujui
+    
     $tukarShift = TukarShift::where('status', 'disetujui')
         ->where(function($q) {
             $q->where('jadwal_peminta_id', $this->id)
@@ -2496,9 +2466,7 @@ public function isDitukar()
     return !is_null($tukarShift);
 }
 
-/**
- * Get info tukar shift jika ada
- */
+
 public function getTukarShiftInfo()
 {
     return TukarShift::where('status', 'disetujui')

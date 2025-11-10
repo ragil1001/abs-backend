@@ -9,9 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class MobileInformasiController extends Controller
 {
-    /**
-     * Get list informasi for karyawan
-     */
+    
     public function index(Request $request)
     {
         try {
@@ -25,13 +23,13 @@ class MobileInformasiController extends Controller
                 ])
                 ->where('karyawan_id', $karyawan->id);
 
-            // Filter by read status
+            
             if ($request->filled('is_read') && $request->is_read !== 'all') {
                 $isRead = $request->is_read === 'true' || $request->is_read === '1';
                 $query->where('is_read', $isRead);
             }
 
-            // Search
+            
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->whereHas('informasi', function($q) use ($search) {
@@ -64,7 +62,7 @@ class MobileInformasiController extends Controller
                 ];
             });
 
-            // Get unread count
+            
             $unreadCount = InformasiKaryawan::where('karyawan_id', $karyawan->id)
                                             ->where('is_read', false)
                                             ->count();
@@ -82,7 +80,7 @@ class MobileInformasiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get karyawan informasi error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -91,9 +89,7 @@ class MobileInformasiController extends Controller
         }
     }
 
-    /**
-     * Get detail informasi
-     */
+    
     public function show(Request $request, $informasiKaryawanId)
     {
         try {
@@ -106,7 +102,7 @@ class MobileInformasiController extends Controller
                 ->where('karyawan_id', $karyawan->id)
                 ->findOrFail($informasiKaryawanId);
 
-            // Mark as read
+            
             $infKaryawan->markAsRead();
 
             $data = [
@@ -137,7 +133,7 @@ class MobileInformasiController extends Controller
                 'message' => 'Informasi tidak ditemukan'
             ], 404);
         } catch (\Exception $e) {
-            // Log::error('Get informasi detail error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -146,9 +142,7 @@ class MobileInformasiController extends Controller
         }
     }
 
-    /**
-     * Mark informasi as read
-     */
+    
     public function markAsRead(Request $request, $informasiKaryawanId)
     {
         try {
@@ -170,7 +164,7 @@ class MobileInformasiController extends Controller
                 'message' => 'Informasi tidak ditemukan'
             ], 404);
         } catch (\Exception $e) {
-            // Log::error('Mark informasi as read error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -179,9 +173,7 @@ class MobileInformasiController extends Controller
         }
     }
 
-    /**
-     * Mark all informasi as read
-     */
+    
     public function markAllAsRead(Request $request)
     {
         try {
@@ -201,7 +193,7 @@ class MobileInformasiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Mark all informasi as read error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -210,9 +202,7 @@ class MobileInformasiController extends Controller
         }
     }
 
-    /**
-     * Get unread count
-     */
+    
     public function getUnreadCount(Request $request)
     {
         try {
@@ -228,7 +218,7 @@ class MobileInformasiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get unread count error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,

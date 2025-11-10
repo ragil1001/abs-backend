@@ -26,7 +26,7 @@ class TestImportSpeed extends Command
         $this->info('Size: ' . $this->formatBytes(filesize($file)));
         $this->newLine();
 
-        // Clear existing data
+        
         $this->warn('⚠️  Clearing existing test data...');
         DB::table('karyawan_projects')->truncate();
         DB::table('karyawans')->truncate();
@@ -37,7 +37,7 @@ class TestImportSpeed extends Command
         $this->info('✅ Ready to import');
         $this->newLine();
 
-        // Measure import time
+        
         $startTime = microtime(true);
         $startMemory = memory_get_usage(true);
 

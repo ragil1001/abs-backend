@@ -98,7 +98,7 @@ Route::prefix('mobile')->group(function () {
 // ============================================
 
 // Admin Auth routes
-Route::post('/admin/register', [AuthController::class, 'registerAdmin']);
+// Route::post('/admin/register', [AuthController::class, 'registerAdmin']);
 Route::post('/admin/login', [AuthController::class, 'loginAdmin']);
 Route::post('/karyawan/login', [AuthController::class, 'loginKaryawan']);
 

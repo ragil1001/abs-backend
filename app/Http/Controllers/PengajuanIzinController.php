@@ -13,9 +13,7 @@ use Carbon\Carbon;
 
 class PengajuanIzinController extends Controller
 {
-    /**
-     * Get daftar pengajuan izin (untuk admin)
-     */
+    
     public function index(Request $request, $projectId)
     {
         try {
@@ -25,22 +23,22 @@ class PengajuanIzinController extends Controller
                 'admin'
             ])->byProject($projectId);
 
-            // Filter by status
+            
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
 
-            // Filter by jenis izin
+            
             if ($request->has('kategori_izin') && $request->kategori_izin !== 'all') {
                 $query->bykategori_izin($request->kategori_izin);
             }
 
-            // Filter by tanggal
+            
             if ($request->has('start_date') && $request->has('end_date')) {
                 $query->betweenDates($request->start_date, $request->end_date);
             }
 
-            // Search by nama karyawan
+            
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->whereHas('jadwalKaryawan.karyawanProject.karyawan', function($q) use ($search) {
@@ -49,7 +47,7 @@ class PengajuanIzinController extends Controller
                 });
             }
 
-            // Sorting
+            
             $sortField = $request->input('sort_field', 'created_at');
             $sortDirection = $request->input('sort_direction', 'desc');
             $query->orderBy($sortField, $sortDirection);
@@ -96,8 +94,8 @@ class PengajuanIzinController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get pengajuan izin error: ' . $e->getMessage());
-            // Log::error($e->getTraceAsString());
+            
+            
             
             return response()->json([
                 'success' => false,
@@ -106,12 +104,8 @@ class PengajuanIzinController extends Controller
         }
     }
 
-    /**
-     * Proses pengajuan izin (setujui/tolak) - WITH NOTIFICATION
-     */
-    /**
- * Proses pengajuan izin (setujui/tolak) - WITH NOTIFICATION & CUTI DEDUCTION
- */
+    
+    
 public function prosesPengajuan(Request $request, $pengajuanId)
 {
     $request->validate([
@@ -125,13 +119,13 @@ public function prosesPengajuan(Request $request, $pengajuanId)
     try {
         $admin = $request->user();
 
-        // Load pengajuan dengan semua relasi yang diperlukan
+        
         $pengajuan = PengajuanIzin::with([
             'jadwalKaryawan.karyawanProject.karyawan',
             'jadwalKaryawan.karyawanProject.project'
         ])->findOrFail($pengajuanId);
 
-        // Validasi status
+        
         if ($pengajuan->status !== 'pending') {
             return response()->json([
                 'success' => false,
@@ -141,28 +135,28 @@ public function prosesPengajuan(Request $request, $pengajuanId)
 
         $karyawan = $pengajuan->jadwalKaryawan->karyawanProject->karyawan;
 
-        // Proses aksi admin
+        
         if ($request->action === 'setujui') {
             $result = $pengajuan->setujui($admin->id, $request->catatan);
             
             $message = "Pengajuan izin oleh {$karyawan->nama} telah disetujui.";
             
-            // Reload karyawan untuk get sisa cuti terbaru
+            
             $karyawan->refresh();
             
-            // Tambahkan info sisa cuti jika cuti tahunan
+            
             if ($pengajuan->kategori_izin === PengajuanIzin::KATEGORI_CUTI_TAHUNAN) {
                 $message .= " Sisa cuti tahunan: {$karyawan->sisa_cuti_tahunan} hari.";
             }
             
         } else {
-            // ✅ PANGGIL method tolak() di Model
+            
             $pengajuan->tolak($admin->id, $request->catatan);
             
             $message = "Pengajuan izin oleh {$karyawan->nama} telah ditolak.";
         }
 
-        // Reload dengan relasi lengkap untuk response
+        
         $pengajuan = PengajuanIzin::with([
             'jadwalKaryawan.karyawanProject.karyawan.divisi',
             'jadwalKaryawan.karyawanProject.karyawan.jabatan',
@@ -178,7 +172,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             'diproses_oleh' => $pengajuan->admin->username
         ];
 
-        // ✅ TAMBAHKAN INFO SISA CUTI JIKA CUTI TAHUNAN DISETUJUI
+        
         if ($request->action === 'setujui' && $pengajuan->kategori_izin === PengajuanIzin::KATEGORI_CUTI_TAHUNAN) {
             $responseData['sisa_cuti_tahunan'] = $karyawan->sisa_cuti_tahunan;
         }
@@ -190,11 +184,11 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         ]);
         
     } catch (\Exception $e) {
-        // ❌ JANGAN rollback di sini, sudah di-handle di Model
-        // DB::rollBack();
+        
+        
 
-        // Log::error('Proses pengajuan error: ' . $e->getMessage());
-        // Log::error($e->getTraceAsString());
+        
+        
 
         return response()->json([
             'success' => false,
@@ -204,9 +198,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
 }
 
 
-    /**
-     * Get detail pengajuan
-     */
+    
     public function show($pengajuanId)
     {
         try {
@@ -245,7 +237,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get detail pengajuan error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -254,9 +246,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         }
     }
 
-    /**
-     * Hapus pengajuan (hanya untuk admin atau karyawan yang dibatalkan)
-     */
+    
     public function hapusPengajuan(Request $request, $pengajuanId)
     {
         DB::beginTransaction();
@@ -265,7 +255,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             $pengajuan = PengajuanIzin::with('jadwalKaryawan.karyawanProject')
                                       ->findOrFail($pengajuanId);
 
-            // Cek apakah user adalah admin atau karyawan yang memiliki pengajuan
+            
             $isOwner = isset($pengajuan->jadwalKaryawan->karyawanProject->karyawan_id) && 
                        $pengajuan->jadwalKaryawan->karyawanProject->karyawan_id === $user->id;
             $isAdmin = $user->role === 'admin';
@@ -277,7 +267,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
                 ], 403);
             }
 
-            // Hanya bisa hapus jika status dibatalkan atau ditolak
+            
             if (!in_array($pengajuan->status, ['dibatalkan', 'ditolak'])) {
                 return response()->json([
                     'success' => false,
@@ -285,12 +275,12 @@ public function prosesPengajuan(Request $request, $pengajuanId)
                 ], 400);
             }
 
-            // Hapus file dokumen jika ada
+            
             if ($pengajuan->file_dokumen && Storage::exists('public/' . $pengajuan->file_dokumen)) {
                 Storage::delete('public/' . $pengajuan->file_dokumen);
             }
 
-            // Hapus pengajuan
+            
             $pengajuan->delete();
 
             DB::commit();
@@ -303,7 +293,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         } catch (\Exception $e) {
             DB::rollback();
             
-            // Log::error('Hapus pengajuan error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -312,15 +302,13 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         }
     }
 
-    /**
-     * Get summary pengajuan untuk dashboard
-     */
+    
     public function getSummary($projectId, Request $request)
     {
         try {
             $query = PengajuanIzin::byProject($projectId);
 
-            // Filter by date range if provided
+            
             if ($request->has('start_date') && $request->has('end_date')) {
                 $query->betweenDates($request->start_date, $request->end_date);
             }
@@ -331,7 +319,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             $ditolak = (clone $query)->ditolak()->count();
             $dibatalkan = (clone $query)->dibatalkan()->count();
 
-            // Get jenis izin summary
+            
             $bykategori_izin = (clone $query)->select('kategori_izin', DB::raw('count(*) as total'))
                                          ->groupBy('kategori_izin')
                                          ->get()
@@ -350,7 +338,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get summary pengajuan error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -359,11 +347,9 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         }
     }
 
-    // ========== METHODS FOR MOBILE APP ==========
+    
 
-    /**
-     * Get pengajuan izin karyawan (untuk mobile)
-     */
+    
     public function getMyPengajuan(Request $request)
     {
         try {
@@ -408,8 +394,8 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get my pengajuan error: ' . $e->getMessage());
-            // Log::error($e->getTraceAsString());
+            
+            
             
             return response()->json([
                 'success' => false,
@@ -418,9 +404,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         }
     }
 
-    /**
-     * Ajukan izin (untuk mobile)
-     */
+    
     public function ajukanIzin(Request $request)
 {
     $request->validate([
@@ -449,7 +433,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         $kategoriIzin = $request->kategori_izin;
         $subKategoriIzin = $request->sub_kategori_izin;
 
-        // ✅ VALIDASI: Cek apakah kategori izin diaktifkan di project ini
+        
         if (!$project->isKategoriIzinEnabled($kategoriIzin)) {
             $enabledCategories = $project->getEnabledKategoriIzin();
             $categoryLabels = array_map(function($cat) {
@@ -464,7 +448,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             ], 422);
         }
 
-        // ✅ VALIDASI: Cek apakah sub kategori diaktifkan jika kategori cuti khusus
+        
         if ($kategoriIzin === PengajuanIzin::KATEGORI_CUTI_KHUSUS) {
             if (!$subKategoriIzin) {
                 return response()->json([
@@ -549,9 +533,9 @@ public function prosesPengajuan(Request $request, $pengajuanId)
                 $fileName = 'izin_' . $karyawan->id . '_' . time() . '.' . $extension;
                 $path = 'izin/' . date('Y/m');
                 $storedPath = $file->storeAs($path, $fileName, 'public');
-                // Log::info("File uploaded successfully: " . $storedPath);
+                
             } catch (\Exception $e) {
-                // Log::error("File upload error: " . $e->getMessage());
+                
                 throw new \Exception("Gagal mengupload file: " . $e->getMessage());
             }
         }
@@ -579,12 +563,12 @@ public function prosesPengajuan(Request $request, $pengajuanId)
 
         DB::commit();
 
-        // Log::info("Pengajuan izin created", [
-        //     'id' => $pengajuan->id,
-        //     'karyawan' => $karyawan->nama,
-        //     'kategori' => $kategoriIzin,
-        //     'sub_kategori' => $subKategoriIzin
-        // ]);
+        
+        
+        
+        
+        
+        
 
         return response()->json([
             'success' => true,
@@ -610,7 +594,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             Storage::disk('public')->delete($storedPath);
         }
 
-        // Log::error('Ajukan izin error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,
@@ -620,9 +604,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
 }
 
 
-    /**
-     * Batalkan pengajuan
-     */
+    
     public function batalkanPengajuan(Request $request, $pengajuanId)
     {
         DB::beginTransaction();
@@ -657,7 +639,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         } catch (\Exception $e) {
             DB::rollback();
             
-            // Log::error('Batalkan pengajuan error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -723,7 +705,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
             ]
         ];
         
-        // Filter hanya kategori yang diaktifkan
+        
         $enabledKategoriList = array_filter($kategoriList, function($item) use ($enabledCategories) {
             return in_array($item['value'], $enabledCategories);
         });
@@ -734,7 +716,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Get kategori izin error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,
@@ -743,9 +725,7 @@ public function prosesPengajuan(Request $request, $pengajuanId)
     }
 }
 
-/**
- * Get sub kategori cuti khusus list
- */
+
 public function getSubKategoriCutiKhususList(Request $request)
 {
     try {
@@ -807,7 +787,7 @@ public function getSubKategoriCutiKhususList(Request $request)
             ]
         ];
         
-        // Filter hanya sub kategori yang diaktifkan
+        
         $enabledSubKategoriList = array_filter($allSubKategoriList, function($item) use ($enabledSubCategories) {
             return in_array($item['value'], $enabledSubCategories);
         });
@@ -818,7 +798,7 @@ public function getSubKategoriCutiKhususList(Request $request)
         ]);
 
     } catch (\Exception $e) {
-        // Log::error('Get sub kategori error: ' . $e->getMessage());
+        
         
         return response()->json([
             'success' => false,
@@ -827,9 +807,7 @@ public function getSubKategoriCutiKhususList(Request $request)
     }
 }
 
-/**
- * Hitung tanggal selesai otomatis (helper endpoint)
- */
+
 public function hitungTanggalSelesai(Request $request)
 {
     $request->validate([

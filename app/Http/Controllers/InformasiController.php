@@ -23,9 +23,7 @@ class InformasiController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    /**
-     * Get list informasi for admin (web)
-     */
+    
     public function index(Request $request)
     {
         try {
@@ -35,17 +33,17 @@ class InformasiController extends Controller
                                   $q->where('is_read', true);
                               }]);
 
-            // Filter by status
+            
             if ($request->filled('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
 
-            // Filter by target type
+            
             if ($request->filled('target_type') && $request->target_type !== 'all') {
                 $query->where('target_type', $request->target_type);
             }
 
-            // Search
+            
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
@@ -54,7 +52,7 @@ class InformasiController extends Controller
                 });
             }
 
-            // Sorting
+            
             $sortField = $request->input('sort_field', 'created_at');
             $sortDirection = $request->input('sort_direction', 'desc');
             $query->orderBy($sortField, $sortDirection);
@@ -96,7 +94,7 @@ class InformasiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get informasi list error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -105,9 +103,7 @@ class InformasiController extends Controller
         }
     }
 
-    /**
-     * Get detail informasi
-     */
+    
     public function show($informasiId)
     {
         try {
@@ -151,7 +147,7 @@ class InformasiController extends Controller
                 'message' => 'Informasi tidak ditemukan'
             ], 404);
         } catch (\Exception $e) {
-            // Log::error('Get informasi detail error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -160,15 +156,13 @@ class InformasiController extends Controller
         }
     }
 
-    /**
-     * Create new informasi (draft)
-     */
+    
     public function store(Request $request)
     {
         $request->validate([
             'judul' => 'required|string|max:255',
             'konten' => 'required|string',
-            'file' => 'nullable|file|max:10240', // Max 10MB
+            'file' => 'nullable|file|max:10240', 
             'target_type' => 'required|in:semua,divisi,jabatan,project,karyawan',
             'target_ids' => 'required_unless:target_type,semua|array',
             'target_ids.*' => 'integer'
@@ -194,7 +188,7 @@ class InformasiController extends Controller
                 'status' => 'draft'
             ];
 
-            // Handle file upload
+            
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
                 $fileName = time() . '_' . $file->getClientOriginalName();
@@ -218,7 +212,7 @@ class InformasiController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            // Log::error('Create informasi error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -227,12 +221,10 @@ class InformasiController extends Controller
         }
     }
 
-    /**
- * Update informasi (only draft)
- */
+    
 public function update(Request $request, $informasiId)
 {
-    // Validasi dengan custom messages
+    
     $validator = \Validator::make($request->all(), [
         'judul' => 'required|string|max:255',
         'konten' => 'required|string',
@@ -263,7 +255,7 @@ public function update(Request $request, $informasiId)
 
         $informasi = Informasi::findOrFail($informasiId);
 
-        // Only draft can be updated
+        
         if ($informasi->status !== 'draft') {
             return response()->json([
                 'success' => false,
@@ -278,7 +270,7 @@ public function update(Request $request, $informasiId)
             'target_ids' => $request->target_type === 'semua' ? null : $request->target_ids
         ];
 
-        // Handle delete file
+        
         if ($request->delete_file && $informasi->file_path) {
             Storage::disk('public')->delete($informasi->file_path);
             $data['file_path'] = null;
@@ -287,9 +279,9 @@ public function update(Request $request, $informasiId)
             $data['file_size'] = null;
         }
 
-        // Handle new file upload
+        
         if ($request->hasFile('file')) {
-            // Delete old file
+            
             if ($informasi->file_path) {
                 Storage::disk('public')->delete($informasi->file_path);
             }
@@ -308,12 +300,12 @@ public function update(Request $request, $informasiId)
 
         DB::commit();
 
-        // Load fresh data dengan relasi
+        
         $informasi = $informasi->fresh([
             'user:id,username'
         ]);
 
-        // Format response
+        
         $responseData = [
             'id' => $informasi->id,
             'judul' => $informasi->judul,
@@ -345,9 +337,9 @@ public function update(Request $request, $informasiId)
         ], 404);
     } catch (\Exception $e) {
         DB::rollback();
-        // Log::error('Update informasi error: ' . $e->getMessage(), [
-        //     'trace' => $e->getTraceAsString()
-        // ]);
+        
+        
+        
         
         return response()->json([
             'success' => false,
@@ -356,9 +348,7 @@ public function update(Request $request, $informasiId)
     }
 }
 
-    /**
-     * Send informasi to karyawan
-     */
+    
     public function send($informasiId)
     {
         try {
@@ -366,7 +356,7 @@ public function update(Request $request, $informasiId)
 
             $informasi = Informasi::findOrFail($informasiId);
 
-            // Check if already sent
+            
             if ($informasi->status === 'terkirim') {
                 return response()->json([
                     'success' => false,
@@ -374,7 +364,7 @@ public function update(Request $request, $informasiId)
                 ], 422);
             }
 
-            // Get target karyawan IDs
+            
             $karyawanIds = $informasi->getTargetKaryawanIds();
 
             if (empty($karyawanIds)) {
@@ -384,7 +374,7 @@ public function update(Request $request, $informasiId)
                 ], 422);
             }
 
-            // Create informasi_karyawan records
+            
             $informasiKaryawanData = [];
             foreach ($karyawanIds as $karyawanId) {
                 $informasiKaryawanData[] = [
@@ -398,21 +388,21 @@ public function update(Request $request, $informasiId)
 
             InformasiKaryawan::insert($informasiKaryawanData);
 
-            // Update informasi status
+            
             $informasi->kirim();
             $informasi->update(['total_penerima' => count($karyawanIds)]);
 
-            // Send notifications to all karyawan
+            
             foreach ($karyawanIds as $karyawanId) {
                 $this->notificationService->notifyKaryawanNewInformasi($informasi, $karyawanId);
             }
 
             DB::commit();
 
-            // Log::info('Informasi sent successfully', [
-            //     'informasi_id' => $informasi->id,
-            //     'total_karyawan' => count($karyawanIds)
-            // ]);
+            
+            
+            
+            
 
             return response()->json([
                 'success' => true,
@@ -430,7 +420,7 @@ public function update(Request $request, $informasiId)
             ], 404);
         } catch (\Exception $e) {
             DB::rollback();
-            // Log::error('Send informasi error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -439,9 +429,7 @@ public function update(Request $request, $informasiId)
         }
     }
 
-    /**
-     * Delete informasi (only draft)
-     */
+    
     public function destroy($informasiId)
     {
         try {
@@ -449,7 +437,7 @@ public function update(Request $request, $informasiId)
 
             $informasi = Informasi::findOrFail($informasiId);
 
-            // Only draft can be deleted
+            
             if ($informasi->status !== 'draft') {
                 return response()->json([
                     'success' => false,
@@ -457,7 +445,7 @@ public function update(Request $request, $informasiId)
                 ], 422);
             }
 
-            // Delete file if exists
+            
             if ($informasi->file_path) {
                 Storage::disk('public')->delete($informasi->file_path);
             }
@@ -478,7 +466,7 @@ public function update(Request $request, $informasiId)
             ], 404);
         } catch (\Exception $e) {
             DB::rollback();
-            // Log::error('Delete informasi error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -487,9 +475,7 @@ public function update(Request $request, $informasiId)
         }
     }
 
-    /**
-     * Get karyawan who received this informasi
-     */
+    
     public function getPenerima($informasiId, Request $request)
     {
         try {
@@ -498,13 +484,13 @@ public function update(Request $request, $informasiId)
             $query = InformasiKaryawan::with(['karyawan.divisi', 'karyawan.jabatan'])
                                       ->where('informasi_id', $informasi->id);
 
-            // Filter by read status
+            
             if ($request->filled('is_read') && $request->is_read !== 'all') {
                 $isRead = $request->is_read === 'true' || $request->is_read === '1';
                 $query->where('is_read', $isRead);
             }
 
-            // Search
+            
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->whereHas('karyawan', function($q) use ($search) {
@@ -549,7 +535,7 @@ public function update(Request $request, $informasiId)
                 'message' => 'Informasi tidak ditemukan'
             ], 404);
         } catch (\Exception $e) {
-            // Log::error('Get penerima informasi error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -558,13 +544,11 @@ public function update(Request $request, $informasiId)
         }
     }
 
-    /**
-     * Get target options for dropdown
-     */
+    
     public function getTargetOptions(Request $request)
     {
         try {
-            $type = $request->input('type'); // divisi, jabatan, project, karyawan
+            $type = $request->input('type'); 
 
             $data = [];
 
@@ -617,7 +601,7 @@ public function update(Request $request, $informasiId)
             ]);
 
         } catch (\Exception $e) {
-            // Log::error('Get target options error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,

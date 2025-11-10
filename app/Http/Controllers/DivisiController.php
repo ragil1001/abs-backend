@@ -12,20 +12,17 @@ use App\Exports\DivisiExport;
 
 class DivisiController extends Controller
 {
-    /**
-     * 🚀 FIXED: Get all divisi - NO CACHING for master data that changes frequently
-     * Cache can cause stale data issues, especially after label changes
-     */
+    
     public function index(Request $request)
     {
         try {
-            // 🔥 CRITICAL: Always fetch fresh data, no caching
-            // This ensures data is always up-to-date after any changes
+            
+            
             $divisis = Divisi::select('id', 'nama', 'created_at', 'updated_at')
                 ->orderBy('id', 'asc')
                 ->get();
 
-            // Clear any existing cache to prevent stale data
+            
             $this->clearAllDivisiCache();
 
             return response()->json([
@@ -34,7 +31,7 @@ class DivisiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // \Log::error('Divisi index error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -62,10 +59,10 @@ class DivisiController extends Controller
 
             DB::commit();
 
-            // 🔥 CRITICAL: Clear all caches after create
+            
             $this->clearAllDivisiCache();
 
-            // \Log::info('Divisi created: ' . $divisi->nama);
+            
 
             return response()->json([
                 'success' => true,
@@ -75,7 +72,7 @@ class DivisiController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            // \Log::error('Divisi store error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -109,10 +106,10 @@ class DivisiController extends Controller
                 'nama' => trim($request->nama)
             ]);
 
-            // 🔥 CRITICAL: Clear all caches after update
+            
             $this->clearAllDivisiCache();
 
-            // \Log::info('Divisi updated: ' . $oldNama . ' -> ' . $divisi->nama);
+            
 
             return response()->json([
                 'success' => true,
@@ -121,7 +118,7 @@ class DivisiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // \Log::error('Divisi update error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -133,7 +130,7 @@ class DivisiController extends Controller
     public function destroy(Divisi $divisi)
     {
         try {
-            // Check if divisi is being used by karyawan
+            
             $isUsed = DB::table('karyawans')
                 ->where('divisi_id', $divisi->id)
                 ->exists();
@@ -148,10 +145,10 @@ class DivisiController extends Controller
             $namaDeleted = $divisi->nama;
             $divisi->delete();
 
-            // 🔥 CRITICAL: Clear all caches after delete
+            
             $this->clearAllDivisiCache();
 
-            // \Log::info('Divisi deleted: ' . $namaDeleted);
+            
 
             return response()->json([
                 'success' => true,
@@ -159,7 +156,7 @@ class DivisiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // \Log::error('Divisi destroy error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -171,7 +168,7 @@ class DivisiController extends Controller
     public function export()
     {
         try {
-            // Check if there's data to export
+            
             $count = Divisi::count();
             if ($count === 0) {
                 return response()->json([
@@ -182,7 +179,7 @@ class DivisiController extends Controller
 
             $fileName = 'data-penempatan-' . date('Y-m-d-His') . '.xlsx';
             
-            // \Log::info('Exporting divisi: ' . $count . ' records');
+            
             
             return Excel::download(new DivisiExport, $fileName, \Maatwebsite\Excel\Excel::XLSX, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -190,7 +187,7 @@ class DivisiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // \Log::error('Divisi export error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -217,11 +214,11 @@ class DivisiController extends Controller
 
             DB::commit();
 
-            // 🔥 CRITICAL: Clear all caches after import
+            
             $this->clearAllDivisiCache();
 
             $importedCount = $import->getRowCount();
-            // \Log::info('Divisi imported: ' . $importedCount . ' records');
+            
 
             return response()->json([
                 'success' => true,
@@ -237,7 +234,7 @@ class DivisiController extends Controller
                 $errors[] = 'Baris ' . $failure->row() . ': ' . implode(', ', $failure->errors());
             }
             
-            // \Log::error('Divisi import validation error: ' . json_encode($errors));
+            
             
             return response()->json([
                 'success' => false,
@@ -247,7 +244,7 @@ class DivisiController extends Controller
             
         } catch (\Exception $e) {
             DB::rollback();
-            // \Log::error('Divisi import error: ' . $e->getMessage());
+            
             
             return response()->json([
                 'success' => false,
@@ -256,13 +253,10 @@ class DivisiController extends Controller
         }
     }
 
-    /**
-     * 🔥 CRITICAL: Clear all divisi-related caches
-     * This ensures no stale data remains after any changes
-     */
+    
     private function clearAllDivisiCache()
     {
-        // Clear all possible divisi cache keys
+        
         $cacheKeys = [
             'divisi_list_all',
             'divisis_list',
@@ -275,9 +269,9 @@ class DivisiController extends Controller
             Cache::forget($key);
         }
 
-        // Clear Laravel's query cache if using it
+        
         if (method_exists(Cache::getStore(), 'flush')) {
-            // Only flush divisi-related cache patterns
+            
             try {
                 $allKeys = Cache::get('all_cache_keys', []);
                 foreach ($allKeys as $key) {
@@ -286,11 +280,11 @@ class DivisiController extends Controller
                     }
                 }
             } catch (\Exception $e) {
-                // Silent fail, not critical
+                
             }
         }
 
-        // Also clear karyawan cache since it depends on divisi data
+        
         $karyawanCacheKeys = [
             'karyawan_cache_keys',
             'karyawans_list',
@@ -300,7 +294,7 @@ class DivisiController extends Controller
             Cache::forget($key);
         }
 
-        // Clear paginated karyawan cache
+        
         try {
             $keys = Cache::get('karyawan_cache_keys', []);
             foreach ($keys as $key) {
@@ -309,9 +303,9 @@ class DivisiController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            // Silent fail
+            
         }
 
-        // \Log::info('All divisi caches cleared');
+        
     }
 }

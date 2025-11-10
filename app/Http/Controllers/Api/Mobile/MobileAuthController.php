@@ -14,12 +14,10 @@ use Carbon\Carbon;
 
 class MobileAuthController extends Controller
 {
-    /**
-     * Login karyawan untuk mobile app
-     */
+    
     public function login(Request $request)
     {
-        // Validate input
+        
         try {
             $request->validate([
                 'username' => 'required|string',
@@ -36,10 +34,10 @@ class MobileAuthController extends Controller
             ], 422);
         }
 
-        // Find karyawan
+        
         $karyawan = Karyawan::where('username', $request->username)->first();
 
-        // Check if user exists and password matches
+        
         if (!$karyawan || !Hash::check($request->password, $karyawan->password)) {
             return response()->json([
                 'success' => false,
@@ -47,7 +45,7 @@ class MobileAuthController extends Controller
             ], 422);
         }
 
-        // Check if account is active
+        
         if ($karyawan->status !== 'aktif') {
             return response()->json([
                 'success' => false,
@@ -55,21 +53,21 @@ class MobileAuthController extends Controller
             ], 403);
         }
 
-        // Delete old FCM tokens for this karyawan
+        
         try {
             $deletedTokens = FcmToken::where('karyawan_id', $karyawan->id)->delete();
-            // Log::info("🗑️ LOGIN: Deleted {$deletedTokens} old FCM token(s) for karyawan: {$karyawan->id}");
+            
         } catch (\Exception $e) {
             throw $e;
         }
 
-        // Delete old Sanctum tokens
+        
         $karyawan->tokens()->delete();
 
-        // Generate new token
+        
         $token = $karyawan->createToken('mobile-app')->plainTextToken;
 
-        // Load relationships
+        
         $karyawan->load(['divisi', 'jabatan', 'activeProject.project']);
 
         $projectData = null;
@@ -129,9 +127,7 @@ class MobileAuthController extends Controller
         ], 200);
     }
 
-    /**
-     * Get profile karyawan yang sedang login
-     */
+    
     public function me(Request $request)
     {
         $karyawan = $request->user();
@@ -209,53 +205,51 @@ class MobileAuthController extends Controller
         ], 200);
     }
 
-    /**
-     * Logout karyawan - FIXED WITH PROPER LOGGING & VERIFICATION
-     */
+    
     public function logout(Request $request)
     {
-        // Log::info('═══════════════════════════════════');
-        // Log::info('🔐 LOGOUT REQUEST RECEIVED');
+        
+        
         
         try {
             $karyawan = $request->user();
             $karyawanId = $karyawan->id;
             
-            // Log::info("👤 Karyawan ID: {$karyawanId}");
-            // Log::info("📧 Karyawan Name: {$karyawan->nama}");
+            
+            
 
-            // Check FCM tokens BEFORE deletion
+            
             $tokensBefore = FcmToken::where('karyawan_id', $karyawanId)->count();
-            // Log::info("📊 FCM Tokens BEFORE deletion: {$tokensBefore}");
+            
 
-            // Show all tokens for this karyawan
+            
             $allTokens = FcmToken::where('karyawan_id', $karyawanId)->get();
             foreach ($allTokens as $fcmToken) {
                 Log::info("  └─ Token ID: {$fcmToken->id}, Token: " . substr($fcmToken->token, 0, 30) . "...");
             }
 
-            // DELETE ALL FCM TOKENS
+            
             try {
                 $deletedCount = DB::table('fcm_tokens')
                     ->where('karyawan_id', $karyawanId)
                     ->delete();
                 
-                // Log::info("✅ DELETED {$deletedCount} FCM token(s) using DB::table");
-            } catch (\Exception $e) {
-                // Log::error('❌ Error with DB::table delete: ' . $e->getMessage());
                 
-                // Fallback to Eloquent
+            } catch (\Exception $e) {
+                
+                
+                
                 try {
                     $deletedCount = FcmToken::where('karyawan_id', $karyawanId)->delete();
-                    // Log::info("✅ DELETED {$deletedCount} FCM token(s) using Eloquent (fallback)");
+                    
                 } catch (\Exception $e2) {
                     throw $e2;
                 }
             }
 
-            // Verify deletion
+            
             $tokensAfter = FcmToken::where('karyawan_id', $karyawanId)->count();
-            // Log::info("📊 FCM Tokens AFTER deletion: {$tokensAfter}");
+            
 
             if ($tokensAfter > 0) {
                 Log::warning("⚠️ WARNING: {$tokensAfter} tokens still remain!");
@@ -263,13 +257,13 @@ class MobileAuthController extends Controller
                 Log::info("✅ All FCM tokens successfully deleted");
             }
 
-            // Delete current Sanctum token
-            $request->user()->currentAccessToken()->delete();
-            // Log::info('✅ Sanctum token deleted');
             
-            // Log::info('═══════════════════════════════════');
-            // Log::info('✅ LOGOUT COMPLETED SUCCESSFULLY');
-            // Log::info('═══════════════════════════════════');
+            $request->user()->currentAccessToken()->delete();
+            
+            
+            
+            
+            
 
             return response()->json([
                 'success' => true,
@@ -282,10 +276,10 @@ class MobileAuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            // Log::error('═══════════════════════════════════');
-            // Log::error('❌ LOGOUT ERROR: ' . $e->getMessage());
-            // Log::error('Stack trace: ' . $e->getTraceAsString());
-            // Log::error('═══════════════════════════════════');
+            
+            
+            
+            
             
             return response()->json([
                 'success' => false,
@@ -294,9 +288,7 @@ class MobileAuthController extends Controller
         }
     }
 
-    /**
-     * Change password
-     */
+    
     public function changePassword(Request $request)
     {
         try {
@@ -326,22 +318,22 @@ class MobileAuthController extends Controller
             ], 422);
         }
 
-        // Update password
+        
         $karyawan->update([
             'password' => Hash::make($request->new_password),
         ]);
 
-        // Delete all FCM tokens
+        
         try {
             $deletedTokens = DB::table('fcm_tokens')
                 ->where('karyawan_id', $karyawan->id)
                 ->delete();
-            // Log::info("✅ PASSWORD CHANGE: Deleted {$deletedTokens} FCM token(s) for karyawan: {$karyawan->id}");
+            
         } catch (\Exception $e) {
             throw $e;
         }
 
-        // Delete all Sanctum tokens
+        
         $karyawan->tokens()->delete();
 
         return response()->json([
