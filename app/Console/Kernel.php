@@ -18,18 +18,18 @@ class Kernel extends ConsoleKernel
 
         
         $schedule->command('files:cleanup-old')
-                 ->everyMinute()
+                 ->dailyAt('00:00')
                  ->withoutOverlapping()
                  ->runInBackground();
 
         
         $schedule->command('notifications:cleanup-old')
-                 ->everyMinute()
+                 ->dailyAt('00:30')
                  ->withoutOverlapping()
                  ->runInBackground();
 
         $schedule->command('presensi:reminder-notification')
-                 ->everyMinute()
+                 ->everyFifteenMinutes()
                  ->withoutOverlapping()
                  ->runInBackground();
 
