@@ -29,7 +29,7 @@ class Kernel extends ConsoleKernel
                  ->runInBackground();
 
         $schedule->command('presensi:reminder-notification')
-                 ->everyFifteenMinutes()
+                 ->everyTenMinutes()
                  ->withoutOverlapping()
                  ->runInBackground();
 
