@@ -24,10 +24,10 @@ return new class extends Migration
             
             $table->string('bulan', 7)->comment('YYYY-MM');
             
-            $table->string('shift_code', 10);
+            $table->string('shift_code', 10)->nullable();
             
             $table->enum('status', ['scheduled', 'completed', 'absent'])
-                  ->default('scheduled');
+                  ->default('scheduled')->nullable();
             
             $table->text('keterangan')->nullable();
             
