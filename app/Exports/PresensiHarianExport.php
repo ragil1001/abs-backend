@@ -59,12 +59,12 @@ class PresensiMasukSheet implements FromCollection, WithHeadings, WithStyles, Wi
     public function collection()
     {
         $collection = collect();
-        
+
         // Add header info
         $collection->push(['REKAP PRESENSI MASUK']);
         $collection->push([]);
         $collection->push([$this->project['nama']]);
-        
+
         $tanggalFormatted = Carbon::parse($this->tanggal)->locale('id')->isoFormat('dddd, D MMMM YYYY');
         $collection->push([$tanggalFormatted . ' - PT. QIPRAH MULTI SERVICE']);
         $collection->push([]);
@@ -91,17 +91,37 @@ class PresensiMasukSheet implements FromCollection, WithHeadings, WithStyles, Wi
         // Data rows
         foreach ($this->data as $item) {
             $presensi = $item['presensi_masuk'];
+
+            // CRITICAL FIX: Gunakan string "-" literal, bukan null
+            // Excel/PhpSpreadsheet akan convert null/empty ke timestamp
+            $waktuMasuk = '-';
+
+            if ($presensi !== null) {
+                // Cek apakah waktu ada dan bukan null/empty
+                if (
+                    array_key_exists('waktu', $presensi) &&
+                    $presensi['waktu'] !== null &&
+                    $presensi['waktu'] !== '' &&
+                    trim($presensi['waktu']) !== ''
+                ) {
+                    // Ambil waktu yang valid
+                    $waktuMasuk = $presensi['waktu'];
+                }
+            }
+
             $collection->push([
                 $item['nik'],
                 $item['nama'],
                 $item['divisi'],
                 $item['jabatan'],
                 $item['shift'],
-                $presensi ? $presensi['waktu'] : '-',
+                $waktuMasuk,  // String "-" atau waktu valid
                 $presensi ? $this->getStatusText($presensi['status']) : ($item['shift_code'] === 'L' ? 'Libur' : 'Alpa'),
-                $presensi ? $presensi['keterangan'] : '-',
-                $presensi ? $presensi['lokasi_nama'] : '-',
-                $presensi ? ($presensi['latitude'] . ', ' . $presensi['longitude']) : '-'
+                $presensi && isset($presensi['keterangan']) ? $presensi['keterangan'] : '-',
+                $presensi && isset($presensi['lokasi_nama']) ? $presensi['lokasi_nama'] : '-',
+                ($presensi && isset($presensi['latitude']) && isset($presensi['longitude']))
+                    ? ($presensi['latitude'] . ', ' . $presensi['longitude'])
+                    : '-'
             ]);
         }
 
@@ -187,10 +207,10 @@ class PresensiMasukSheet implements FromCollection, WithHeadings, WithStyles, Wi
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ]);
 
-        // Data rows
+        // Data rows - FORMAT KOLOM WAKTU SEBAGAI TEXT
         $dataStartRow = 19;
         $dataEndRow = 18 + count($this->data);
-        
+
         if ($dataEndRow >= $dataStartRow) {
             $sheet->getStyle("A{$dataStartRow}:J{$dataEndRow}")->applyFromArray([
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
@@ -201,6 +221,9 @@ class PresensiMasukSheet implements FromCollection, WithHeadings, WithStyles, Wi
             $sheet->getStyle("A{$dataStartRow}:A{$dataEndRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("F{$dataStartRow}:F{$dataEndRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("G{$dataStartRow}:G{$dataEndRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // PENTING: Format kolom waktu sebagai TEXT, bukan TIME
+            $sheet->getStyle("F{$dataStartRow}:F{$dataEndRow}")->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
         }
 
         return [];
@@ -244,12 +267,12 @@ class PresensiPulangSheet implements FromCollection, WithHeadings, WithStyles, W
     public function collection()
     {
         $collection = collect();
-        
+
         // Add header info
         $collection->push(['REKAP PRESENSI PULANG']);
         $collection->push([]);
         $collection->push([$this->project['nama']]);
-        
+
         $tanggalFormatted = Carbon::parse($this->tanggal)->locale('id')->isoFormat('dddd, D MMMM YYYY');
         $collection->push([$tanggalFormatted . ' - PT. QIPRAH MULTI SERVICE']);
         $collection->push([]);
@@ -279,17 +302,37 @@ class PresensiPulangSheet implements FromCollection, WithHeadings, WithStyles, W
         // Data rows
         foreach ($this->data as $item) {
             $presensi = $item['presensi_pulang'];
+
+            // CRITICAL FIX: Gunakan string "-" literal, bukan null
+            // Excel/PhpSpreadsheet akan convert null/empty ke timestamp
+            $waktuPulang = '-';
+
+            if ($presensi !== null) {
+                // Cek apakah waktu ada dan bukan null/empty
+                if (
+                    array_key_exists('waktu', $presensi) &&
+                    $presensi['waktu'] !== null &&
+                    $presensi['waktu'] !== '' &&
+                    trim($presensi['waktu']) !== ''
+                ) {
+                    // Ambil waktu yang valid
+                    $waktuPulang = $presensi['waktu'];
+                }
+            }
+
             $collection->push([
                 $item['nik'],
                 $item['nama'],
                 $item['divisi'],
                 $item['jabatan'],
                 $item['shift'],
-                $presensi ? $presensi['waktu'] : '-',
+                $waktuPulang,  // String "-" atau waktu valid
                 $presensi ? $this->getStatusText($presensi['status']) : ($item['shift_code'] === 'L' ? 'Libur' : 'Alpa'),
-                $presensi ? $presensi['keterangan'] : '-',
-                $presensi ? $presensi['lokasi_nama'] : '-',
-                $presensi ? ($presensi['latitude'] . ', ' . $presensi['longitude']) : '-'
+                $presensi && isset($presensi['keterangan']) ? $presensi['keterangan'] : '-',
+                $presensi && isset($presensi['lokasi_nama']) ? $presensi['lokasi_nama'] : '-',
+                ($presensi && isset($presensi['latitude']) && isset($presensi['longitude']))
+                    ? ($presensi['latitude'] . ', ' . $presensi['longitude'])
+                    : '-'
             ]);
         }
 
@@ -375,10 +418,10 @@ class PresensiPulangSheet implements FromCollection, WithHeadings, WithStyles, W
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ]);
 
-        // Data rows
+        // Data rows - FORMAT KOLOM WAKTU SEBAGAI TEXT
         $dataStartRow = 22;
         $dataEndRow = 21 + count($this->data);
-        
+
         if ($dataEndRow >= $dataStartRow) {
             $sheet->getStyle("A{$dataStartRow}:J{$dataEndRow}")->applyFromArray([
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
@@ -389,6 +432,9 @@ class PresensiPulangSheet implements FromCollection, WithHeadings, WithStyles, W
             $sheet->getStyle("A{$dataStartRow}:A{$dataEndRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("F{$dataStartRow}:F{$dataEndRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("G{$dataStartRow}:G{$dataEndRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // PENTING: Format kolom waktu sebagai TEXT, bukan TIME
+            $sheet->getStyle("F{$dataStartRow}:F{$dataEndRow}")->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
         }
 
         return [];

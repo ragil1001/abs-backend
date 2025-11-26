@@ -26,19 +26,19 @@ use App\Http\Controllers\PengajuanLemburController;
 Route::prefix('mobile')->group(function () {
     // Auth routes (public)
     Route::post('/login', [MobileAuthController::class, 'login']);
-    
+
     // Protected routes (require authentication)
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [MobileAuthController::class, 'me']);
         Route::post('/logout', [MobileAuthController::class, 'logout']);
         Route::post('/change-password', [MobileAuthController::class, 'changePassword']);
-        
+
         // Presensi routes
         Route::get('/presensi/cek', [PresensiController::class, 'cekPresensi']);
         Route::post('/presensi/validasi-lokasi', [PresensiController::class, 'validasiLokasi']);
         Route::post('/presensi/submit', [PresensiController::class, 'submitPresensi']);
         Route::get('/presensi/history', [PresensiController::class, 'getHistory']);
-        
+
         // Pengajuan Izin routes
         Route::get('/pengajuan-izin/kategori-list', [PengajuanIzinController::class, 'getKategoriIzinList']);
         Route::get('/pengajuan-izin/sub-kategori-list', [PengajuanIzinController::class, 'getSubKategoriCutiKhususList']);
@@ -50,15 +50,15 @@ Route::prefix('mobile')->group(function () {
         Route::delete('/pengajuan-izin/{pengajuanId}', [PengajuanIzinController::class, 'hapusPengajuan']);
 
         Route::get('/pengajuan-lembur', [PengajuanLemburController::class, 'getMyPengajuan']);
-    Route::post('/pengajuan-lembur', [PengajuanLemburController::class, 'ajukanLembur']);
-    Route::get('/pengajuan-lembur/{pengajuanId}', [PengajuanLemburController::class, 'show']);
-    Route::patch('/pengajuan-lembur/{pengajuanId}/batalkan', [PengajuanLemburController::class, 'batalkanPengajuan']);
-    Route::delete('/pengajuan-lembur/{pengajuanId}', [PengajuanLemburController::class, 'hapusPengajuan']);
+        Route::post('/pengajuan-lembur', [PengajuanLemburController::class, 'ajukanLembur']);
+        Route::get('/pengajuan-lembur/{pengajuanId}', [PengajuanLemburController::class, 'show']);
+        Route::patch('/pengajuan-lembur/{pengajuanId}/batalkan', [PengajuanLemburController::class, 'batalkanPengajuan']);
+        Route::delete('/pengajuan-lembur/{pengajuanId}', [PengajuanLemburController::class, 'hapusPengajuan']);
 
         Route::get('/presensi/data', [PresensiController::class, 'getPresensiData']);
         Route::get('/presensi/statistik-periode', [PresensiController::class, 'getStatistikPeriode']);
         Route::get('/jadwal/bulan', [PresensiController::class, 'getJadwalBulan']);
-        
+
         // Tukar Shift routes
         Route::prefix('tukar-shift')->group(function () {
             Route::get('/', [TukarShiftController::class, 'index']);
@@ -110,29 +110,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/data', [DashboardController::class, 'getDashboardData']);
     Route::post('/dashboard/clear-cache', [DashboardController::class, 'clearCache']);
     // IMPORTANT: Export/Import routes MUST be defined BEFORE apiResource
-    
+
     // Divisi export/import routes
     Route::get('/divisis/export', [DivisiController::class, 'export']);
     Route::post('/divisis/import', [DivisiController::class, 'import']);
-    
+
     // Jabatan export/import routes
     Route::get('/jabatans/export', [JabatanController::class, 'export']);
     Route::post('/jabatans/import', [JabatanController::class, 'import']);
-    
+
     // Karyawan export/import routes
-    Route::get('/karyawans/export', [KaryawanController::class, 'export']); 
+    Route::get('/karyawans/export', [KaryawanController::class, 'export']);
     Route::post('/karyawans/validate-import', [KaryawanController::class, 'validateImport']); // NEW
     Route::post('/karyawans/import', [KaryawanController::class, 'import']);
     Route::post('/karyawans/import-status', [KaryawanController::class, 'checkImportStatus']);
     Route::post('/karyawans/import-progress', [KaryawanController::class, 'getImportProgress']);
-    
+
     // Admin routes - apiResource must come AFTER custom routes
     Route::apiResource('/divisis', DivisiController::class);
     Route::get('/jabatans/all', [JabatanController::class, 'getAll']);
     Route::apiResource('/jabatans', JabatanController::class);
     Route::apiResource('/karyawans', KaryawanController::class);
     Route::patch('/karyawans/{karyawan}/reset-password', [KaryawanController::class, 'resetPassword']);
-    
+
     // Project export route - MUST be before apiResource
     Route::get('/projects/export', [ProjectController::class, 'export']);
 
@@ -179,16 +179,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('pengajuan-izin')->group(function () {
         // Get pengajuan izin by project
         Route::get('/project/{projectId}', [PengajuanIzinController::class, 'index']);
-        
+
         // Get summary
         Route::get('/project/{projectId}/summary', [PengajuanIzinController::class, 'getSummary']);
-        
+
         // Proses pengajuan (setujui/tolak)
         Route::post('/{pengajuanId}/proses', [PengajuanIzinController::class, 'prosesPengajuan']);
-        
+
         // Get detail
         Route::get('/{pengajuanId}', [PengajuanIzinController::class, 'show']);
-        
+
         // Hapus pengajuan (untuk admin)
         Route::delete('/{pengajuanId}', [PengajuanIzinController::class, 'hapusPengajuan']);
     });
@@ -199,13 +199,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{presensiId}/konfirmasi-lembur', [PresensiController::class, 'konfirmasiLembur']);
     });
 
-    Route::get('/rekap-bulanan', [PresensiController::class, 'getRekapBulanan']); 
-    
+    Route::get('/rekap-bulanan', [PresensiController::class, 'getRekapBulanan']);
+    Route::get('/rekap-per-karyawan', [PresensiController::class, 'getRekapPerKaryawan']);
+
     Route::prefix('tukar-shift')->group(function () {
         // ADMIN WEB ENDPOINTS
         Route::get('/project/{projectId}', [TukarShiftController::class, 'indexAdmin']);
         Route::get('/project/{projectId}/summary', [TukarShiftController::class, 'getSummary']);
-        
+
         // SHARED ENDPOINT (digunakan mobile & web)
         Route::get('/{tukarShiftId}', [TukarShiftController::class, 'show']);
     });
@@ -227,16 +228,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('pengajuan-lembur')->group(function () {
         // Get pengajuan lembur by project
         Route::get('/project/{projectId}', [PengajuanLemburController::class, 'index']);
-        
+
         // Get summary
         Route::get('/project/{projectId}/summary', [PengajuanLemburController::class, 'getSummary']);
-        
+
         // Proses pengajuan (setujui/tolak)
         Route::post('/{pengajuanId}/proses', [PengajuanLemburController::class, 'prosesPengajuan']);
-        
+
         // Get detail
         Route::get('/{pengajuanId}', [PengajuanLemburController::class, 'show']);
-        
+
         // Hapus pengajuan (untuk admin)
         Route::delete('/{pengajuanId}', [PengajuanLemburController::class, 'hapusPengajuan']);
     });
