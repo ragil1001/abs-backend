@@ -18,19 +18,29 @@ class CleanupOldFiles extends Command
     protected $description = 'Cleanup foto presensi, file dokumen izin, dan file SKL lembur yang lebih dari 1 bulan 3 hari';
 
     public function handle()
-    {        
+    {
+        $this->info('Memulai cleanup file lama...');
+        
         $cutoffDate = Carbon::now()->subDays(40);
         
-        
+        // Cleanup foto presensi
+        $this->info('Membersihkan foto presensi...');
         $presensiCleaned = $this->cleanupPresensi($cutoffDate);
         
-        
+        // Cleanup file dokumen izin
+        $this->info('Membersihkan file dokumen izin...');
         $izinCleaned = $this->cleanupPengajuanIzin($cutoffDate);
         
-        
+        // Cleanup file SKL lembur
+        $this->info('Membersihkan file SKL lembur...');
         $lemburCleaned = $this->cleanupPengajuanLembur($cutoffDate);
         
-        Log::info("File cleanup - Foto: {$presensiCleaned}, Dokumen Izin: {$izinCleaned}, SKL Lembur: {$lemburCleaned}");
+        $this->info("Selesai!");
+        $this->info("Foto presensi dibersihkan: {$presensiCleaned}");
+        $this->info("File dokumen izin dibersihkan: {$izinCleaned}");
+        $this->info("File SKL lembur dibersihkan: {$lemburCleaned}");
+        
+        Log::info("File cleanup selesai - Foto: {$presensiCleaned}, Dokumen Izin: {$izinCleaned}, SKL Lembur: {$lemburCleaned}");
 
         return 0;
     }

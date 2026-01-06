@@ -30,7 +30,10 @@ class PengajuanLemburObserver
             //     'id' => $pengajuanLembur->id
             // ]);
         } catch (\Exception $e) {
-            throw $e;
+            Log::error('Failed to send notification on PengajuanLembur created', [
+                'error' => $e->getMessage(),
+                'id' => $pengajuanLembur->id
+            ]);
         }
     }
 
@@ -46,7 +49,7 @@ class PengajuanLemburObserver
                     Log::info("File SKL dihapus: {$pengajuanLembur->file_skl}");
                 }
             } catch (\Exception $e) {
-                throw $e;
+                Log::error("Error deleting file SKL: " . $e->getMessage());
             }
         }
     }
@@ -63,7 +66,7 @@ class PengajuanLemburObserver
                     Log::info("File SKL force deleted: {$pengajuanLembur->file_skl}");
                 }
             } catch (\Exception $e) {
-                throw $e;
+                Log::error("Error force deleting file SKL: " . $e->getMessage());
             }
         }
     }
@@ -93,7 +96,10 @@ class PengajuanLemburObserver
                 }
             }
         } catch (\Exception $e) {
-            throw $e;
+            Log::error('Failed to send notification on PengajuanLembur updated', [
+                'error' => $e->getMessage(),
+                'id' => $pengajuanLembur->id
+            ]);
         }
     }
 }

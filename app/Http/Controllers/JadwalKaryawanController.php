@@ -15,7 +15,9 @@ use App\Exports\JadwalKaryawanExport;
 
 class JadwalKaryawanController extends Controller
 {
-    
+    /**
+     * Get jadwal by project and periode
+     */
     public function getByProject(Request $request, $projectId)
 {
     $request->validate([
@@ -52,7 +54,7 @@ class JadwalKaryawanController extends Controller
 
         $jadwals = $query->orderBy('tanggal')->get();
 
-        
+        // ✅ CREATE SHIFT MAP FOR QUICK LOOKUP
         $shiftMap = $project->shiftProjects->keyBy('kode')->map(function($shift) {
             return [
                 'waktu_mulai' => substr($shift->waktu_mulai, 0, 5),
@@ -69,7 +71,7 @@ class JadwalKaryawanController extends Controller
                     'id' => $karyawanProject->karyawan->id,
                     'nik' => $karyawanProject->karyawan->nik,
                     'nama' => $karyawanProject->karyawan->nama,
-                    'divisi' => $karyawan->divisi ? [ 
+                    'divisi' => $karyawan->divisi ? [ // ✅ FIXED
                         'id' => $karyawan->divisi->id,
                         'nama' => $karyawan->divisi->nama
                     ] : [
@@ -79,7 +81,7 @@ class JadwalKaryawanController extends Controller
                     'jabatan' => $karyawanProject->karyawan->jabatan,
                 ],
                 'jadwals' => $items->map(function($jadwal) use ($shiftMap) {
-                    
+                    // ✅ CHECK IF SHIFT IS SWAPPED
                     $isDitukar = false;
                     $tukarShiftInfo = null;
                     
@@ -107,7 +109,7 @@ class JadwalKaryawanController extends Controller
                         }
                     }
 
-                    
+                    // ✅ GET SHIFT TIMES FROM SHIFT MAP
                     $shiftCode = strtoupper($jadwal->shift_code);
                     $waktuMulai = null;
                     $waktuSelesai = null;
@@ -121,8 +123,8 @@ class JadwalKaryawanController extends Controller
                         'id' => $jadwal->id,
                         'tanggal' => $jadwal->tanggal,
                         'shift_code' => $jadwal->shift_code,
-                        'waktu_mulai' => $waktuMulai,      
-                        'waktu_selesai' => $waktuSelesai,  
+                        'waktu_mulai' => $waktuMulai,      // ✅ ADD THIS
+                        'waktu_selesai' => $waktuSelesai,  // ✅ ADD THIS
                         'status' => $jadwal->status,
                         'is_libur' => $jadwal->is_libur,
                         'hari' => $jadwal->hari,
@@ -146,7 +148,7 @@ class JadwalKaryawanController extends Controller
         ]);
 
     } catch (\Exception $e) {
-        
+        // Log::error('Get jadwal error: ' . $e->getMessage());
         
         return response()->json([
             'success' => false,
@@ -155,7 +157,9 @@ class JadwalKaryawanController extends Controller
     }
 }
 
-    
+    /**
+     * Import jadwal from Excel
+     */
     public function import(Request $request, $projectId)
     {
         $request->validate([
@@ -176,7 +180,7 @@ class JadwalKaryawanController extends Controller
 
             DB::beginTransaction();
 
-            
+            // CRITICAL: Pass raw date string - NO parsing
             $import = new JadwalKaryawanImport($projectId, $request->period_start, $validShiftCodes);
             Excel::import($import, $request->file('file'));
 
@@ -184,7 +188,7 @@ class JadwalKaryawanController extends Controller
 
 $successCount = $import->getSuccessCount();
 $errors = $import->getErrors();
-$skippedPast = $import->getSkippedPastCount(); 
+$skippedPast = $import->getSkippedPastCount(); // ✅ NEW
 
 $message = "$successCount jadwal berhasil diimport untuk project {$project->nama}";
 if ($skippedPast > 0) {
@@ -198,7 +202,7 @@ return response()->json([
     'success' => true,
     'message' => $message,
     'success_count' => $successCount,
-    'skipped_past' => $skippedPast, 
+    'skipped_past' => $skippedPast, // ✅ NEW
     'errors' => $errors,
     'project' => $project
 ], 200);
@@ -206,7 +210,7 @@ return response()->json([
         } catch (\Exception $e) {
             DB::rollback();
             
-            
+            // Log::error('Import jadwal error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -215,7 +219,9 @@ return response()->json([
         }
     }
 
-    
+    /**
+     * Export jadwal to Excel
+     */
     public function export($projectId, Request $request)
     {
         $request->validate([
@@ -226,7 +232,7 @@ return response()->json([
         try {
             $project = Project::with('shiftProjects')->findOrFail($projectId);
             
-            
+            // CRITICAL: Use raw date strings
             $startDate = $request->start_date;
             $endDate = $request->end_date;
             
@@ -253,7 +259,7 @@ return response()->json([
             );
 
         } catch (\Exception $e) {
-            
+            // Log::error('Export jadwal error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -262,7 +268,9 @@ return response()->json([
         }
     }
 
-    
+    /**
+     * Delete jadwal by periode
+     */
     public function deleteByPeriode(Request $request, $projectId)
     {
         $request->validate([
@@ -273,7 +281,7 @@ return response()->json([
         try {
             DB::beginTransaction();
 
-            
+            // CRITICAL: Use raw date strings
             $startDate = $request->start_date;
             $endDate = $request->end_date;
 
@@ -293,7 +301,7 @@ return response()->json([
         } catch (\Exception $e) {
             DB::rollback();
             
-            
+            // Log::error('Delete jadwal error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -302,7 +310,9 @@ return response()->json([
         }
     }
 
-    
+    /**
+     * Get summary statistics
+     */
     public function getSummary($projectId, Request $request)
     {
         $request->validate([
@@ -311,7 +321,7 @@ return response()->json([
         ]);
 
         try {
-            
+            // CRITICAL: Use raw date strings
             $startDate = $request->start_date;
             $endDate = $request->end_date;
             
@@ -339,7 +349,7 @@ return response()->json([
             ]);
 
         } catch (\Exception $e) {
-            
+            // Log::error('Get summary error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,

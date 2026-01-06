@@ -70,7 +70,7 @@ class ShiftProjectController extends Controller
         ]);
     }
 
-    
+    // Method untuk mendapatkan shifts berdasarkan project
     public function getByProject($projectId)
     {
         $shifts = ShiftProject::where('project_id', $projectId)->get();

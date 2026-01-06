@@ -38,10 +38,10 @@ class Karyawan extends Authenticatable
         'password' => 'hashed',
     ];
 
-    
+    // ✅ UPDATED: Append active_project to JSON
     protected $appends = ['active_project_name'];
 
-    
+    // Relationships
     public function divisi()
     {
         return $this->belongsTo(Divisi::class);
@@ -69,13 +69,13 @@ class Karyawan extends Authenticatable
         return $this->hasMany(KaryawanProject::class);
     }
 
-    
+    // ✅ CRITICAL: Active Project Relationship
      public function activeProject()
     {
         return $this->hasOne(KaryawanProject::class)
                     ->where('status', 'aktif')
                     ->with(['project' => function($query) {
-                        
+                        // ✅ CRITICAL: Load ALL columns explicitly
                         $query->select([
                             'id',
                             'nama',
@@ -96,16 +96,18 @@ class Karyawan extends Authenticatable
                     }]);
     }
 
-    
+    /**
+     * ✅ Alternative: Get active project without select restriction
+     */
     public function getActiveProjectAttribute()
     {
         return $this->karyawanProjects()
                     ->where('status', 'aktif')
-                    ->with('project') 
+                    ->with('project') // Load all columns
                     ->first();
     }
 
-    
+    // ✅ NEW: Accessor for active project name
     public function getActiveProjectNameAttribute()
     {
         if (!$this->relationLoaded('activeProject')) {
@@ -115,7 +117,7 @@ class Karyawan extends Authenticatable
         return $this->activeProject?->project?->nama;
     }
 
-    
+    // Scopes
     public function scopeAktif($query)
     {
         return $query->where('status', 'aktif');
@@ -141,7 +143,7 @@ class Karyawan extends Authenticatable
         return $query->where('jenis_kelamin', $gender);
     }
 
-    
+    // ✅ NEW: Scope for project filter
     public function scopeByProject($query, $projectId)
     {
         if ($projectId === 'unassigned') {
@@ -153,7 +155,7 @@ class Karyawan extends Authenticatable
         });
     }
 
-    
+    // Accessors
     public function getJenisKelaminTextAttribute()
     {
         return $this->jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan';
@@ -201,7 +203,7 @@ class Karyawan extends Authenticatable
         return $this->status === 'aktif';
     }
 
-    
+    // Mutators
     public function setNikAttribute($value)
     {
         $this->attributes['nik'] = strtoupper(trim($value));
@@ -238,7 +240,7 @@ class Karyawan extends Authenticatable
         $this->attributes['username'] = strtolower(trim($value));
     }
 
-    
+    // ========== CUTI METHODS ==========
     
     public function cekResetCutiTahunan()
     {
@@ -279,7 +281,7 @@ class Karyawan extends Authenticatable
         \Log::info("Cuti tahunan dikembalikan {$jumlahHari} hari untuk {$this->nama}. Sisa: {$newSisa}");
     }
 
-    
+    // Static methods for generating defaults
     public static function generateUsername($nik)
     {
         $username = $nik;
@@ -295,7 +297,7 @@ class Karyawan extends Authenticatable
         return $date->format('dmY');
     }
 
-    
+    // Boot method for model events
     protected static function boot()
     {
         parent::boot();
@@ -321,7 +323,7 @@ class Karyawan extends Authenticatable
         });
     }
 
-    
+    // Custom methods
     public function updateStatus($status)
     {
         $this->update([
@@ -347,7 +349,7 @@ class Karyawan extends Authenticatable
         return $password;
     }
 
-    
+    // Query helpers
     public static function getByNik($nik)
     {
         return self::where('nik', $nik)->first();

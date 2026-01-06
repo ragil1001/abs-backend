@@ -1,5 +1,5 @@
 <?php
-
+// app/Models/FcmToken.php
 
 namespace App\Models;
 
@@ -27,7 +27,7 @@ class FcmToken extends Model
         'is_active' => 'boolean',
     ];
 
-    
+    // Relationships
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -38,7 +38,7 @@ class FcmToken extends Model
         return $this->belongsTo(Karyawan::class);
     }
 
-    
+    // Scopes
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -54,7 +54,7 @@ class FcmToken extends Model
         return $query->where('karyawan_id', $karyawanId);
     }
 
-    
+    // Static Methods
     public static function storeForUser($userId, $token, $deviceType = 'web', $deviceName = null)
     {
         try {
@@ -63,7 +63,7 @@ class FcmToken extends Model
                            ->first();
 
             if ($fcmToken) {
-                
+                // Update existing token
                 $fcmToken->update([
                     'device_type' => $deviceType,
                     'device_name' => $deviceName,
@@ -71,7 +71,7 @@ class FcmToken extends Model
                     'is_active' => true
                 ]);
             } else {
-                
+                // Create new token
                 $fcmToken = self::create([
                     'user_id' => $userId,
                     'token' => $token,
@@ -82,14 +82,14 @@ class FcmToken extends Model
                 ]);
             }
 
-            
-            
-            
-            
+            // Log::info('FCM token stored for user', [
+            //     'user_id' => $userId,
+            //     'device_type' => $deviceType
+            // ]);
 
             return $fcmToken;
         } catch (\Exception $e) {
-            
+            // Log::error('Store admin FCM token error: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -102,7 +102,7 @@ class FcmToken extends Model
                            ->first();
 
             if ($fcmToken) {
-                
+                // Update existing token
                 $fcmToken->update([
                     'device_type' => $deviceType,
                     'device_name' => $deviceName,
@@ -110,7 +110,7 @@ class FcmToken extends Model
                     'is_active' => true
                 ]);
             } else {
-                
+                // Create new token
                 $fcmToken = self::create([
                     'karyawan_id' => $karyawanId,
                     'token' => $token,
@@ -121,14 +121,14 @@ class FcmToken extends Model
                 ]);
             }
 
-            
-            
-            
-            
+            // Log::info('FCM token stored for karyawan', [
+            //     'karyawan_id' => $karyawanId,
+            //     'device_type' => $deviceType
+            // ]);
 
             return $fcmToken;
         } catch (\Exception $e) {
-            
+            // Log::error('Store karyawan FCM token error: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -138,19 +138,20 @@ class FcmToken extends Model
         try {
             $deleted = self::where('token', $token)->delete();
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+            // if ($deleted > 0) {
+            //     Log::info('✅ FCM token deleted', [
+            //         'token' => substr($token, 0, 20) . '...',
+            //         'count' => $deleted
+            //     ]);
+            // } else {
+            //     Log::warning('⚠️ FCM token not found for deletion', [
+            //         'token' => substr($token, 0, 20) . '...'
+            //     ]);
+            // }
             
             return $deleted > 0;
         } catch (\Exception $e) {
+            Log::error('❌ Error deleting FCM token: ' . $e->getMessage());
             return false;
         }
     }
@@ -180,10 +181,11 @@ class FcmToken extends Model
                           ->where('last_used_at', '<', $cutoffDate)
                           ->delete();
 
-            
+            // Log::info("Cleaned up {$deleted} inactive FCM tokens");
 
             return $deleted;
         } catch (\Exception $e) {
+            Log::error('Cleanup inactive tokens error: ' . $e->getMessage());
             return 0;
         }
     }

@@ -24,7 +24,7 @@ class InformasiKaryawan extends Model
         'read_at' => 'datetime'
     ];
 
-    
+    // Relationships
     public function informasi()
     {
         return $this->belongsTo(Informasi::class);
@@ -35,7 +35,7 @@ class InformasiKaryawan extends Model
         return $this->belongsTo(Karyawan::class);
     }
 
-    
+    // Scopes
     public function scopeRead($query)
     {
         return $query->where('is_read', true);
@@ -51,7 +51,7 @@ class InformasiKaryawan extends Model
         return $query->where('karyawan_id', $karyawanId);
     }
 
-    
+    // Methods
     public function markAsRead()
     {
         if (!$this->is_read) {
@@ -60,7 +60,7 @@ class InformasiKaryawan extends Model
                 'read_at' => Carbon::now()
             ]);
 
-            
+            // Update statistik di informasi
             $this->informasi->updateStatistik();
         }
     }

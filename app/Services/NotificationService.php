@@ -8,6 +8,7 @@ use App\Models\Karyawan;
 use App\Models\PengajuanIzin;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class NotificationService
@@ -39,13 +40,13 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $karyawan = $pengajuanIzin->jadwalKaryawan->karyawanProject->karyawan;
             $project = $pengajuanIzin->jadwalKaryawan->karyawanProject->project;
-            
+
             $title = 'Pengajuan Izin Baru';
             $body = "{$karyawan->nama} mengajukan {$pengajuanIzin->kategori_izin} di project {$project->nama_project}";
-            
+
             $data = [
                 'type' => 'izin_pending',
                 'pengajuan_izin_id' => (string) $pengajuanIzin->id,
@@ -57,13 +58,12 @@ class NotificationService
                 'project_nama' => $project->nama_project,
                 'tanggal_mulai' => $pengajuanIzin->tanggal_mulai->format('Y-m-d'),
                 'tanggal_selesai' => $pengajuanIzin->tanggal_selesai->format('Y-m-d'),
-                'durasi_hari' => (string) $pengajuanIzin->durasi_hari,
-                'click_action' => $this->getFrontendUrl() . '/pengajuan-izin?id=' . $pengajuanIzin->id
+                'durasi_hari' => (string) $pengajuanIzin->durasi_hari
             ];
 
             // Get all admin users
             $adminUsers = User::all();
-            
+
             foreach ($adminUsers as $admin) {
                 // Create notification record in database
                 Notification::createForAdmin(
@@ -91,7 +91,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'pengajuan_izin_id' => $pengajuanIzin->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -107,17 +107,17 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $karyawan = $pengajuanIzin->jadwalKaryawan->karyawanProject->karyawan;
             $project = $pengajuanIzin->jadwalKaryawan->karyawanProject->project;
-            
+
             $title = 'Pengajuan Izin Disetujui';
             $body = "Pengajuan {$pengajuanIzin->kategori_izin} Anda di project {$project->nama_project} telah disetujui";
-            
+
             if ($pengajuanIzin->catatan_admin) {
                 $body .= ": " . $pengajuanIzin->catatan_admin;
             }
-            
+
             $data = [
                 'type' => 'izin_approved',
                 'pengajuan_izin_id' => (string) $pengajuanIzin->id,
@@ -157,7 +157,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'pengajuan_izin_id' => $pengajuanIzin->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -173,17 +173,17 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $karyawan = $pengajuanIzin->jadwalKaryawan->karyawanProject->karyawan;
             $project = $pengajuanIzin->jadwalKaryawan->karyawanProject->project;
-            
+
             $title = 'Pengajuan Izin Ditolak';
             $body = "Pengajuan {$pengajuanIzin->kategori_izin} Anda di project {$project->nama_project} ditolak";
-            
+
             if ($pengajuanIzin->catatan_admin) {
                 $body .= ": " . $pengajuanIzin->catatan_admin;
             }
-            
+
             $data = [
                 'type' => 'izin_rejected',
                 'pengajuan_izin_id' => (string) $pengajuanIzin->id,
@@ -223,7 +223,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'pengajuan_izin_id' => $pengajuanIzin->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -275,26 +275,26 @@ class NotificationService
             //     'project_id' => $project->id,
             //     'project_nama' => $project->nama_project
             // ]);
-            
+
             // Get shift info
             $shift = $project->shiftProjects->where('kode', $jadwal->shift_code)->first();
-            
+
             // Format tanggal ke bahasa Indonesia MANUAL
             $tanggalObj = Carbon::parse($jadwal->tanggal);
             $tanggalFormatted = $this->formatTanggalIndonesia($tanggalObj);
-            
+
             $title = 'Presensi Tidak Hadir';
-            $body = "Anda tidak melakukan presensi masuk pada " . 
-                    $tanggalFormatted . 
-                    " shift {$jadwal->shift_code}";
-            
+            $body = "Anda tidak melakukan presensi masuk pada " .
+                $tanggalFormatted .
+                " shift {$jadwal->shift_code}";
+
             if ($shift) {
                 $body .= " ({$shift->waktu_mulai} - {$shift->waktu_selesai})";
             }
-            
+
             // Add project name to body
             $body .= " di project {$project->nama_project}";
-            
+
             $data = [
                 'type' => 'presensi_alpa',
                 'jadwal_id' => (string) $jadwal->id,
@@ -364,7 +364,7 @@ class NotificationService
             //     'trace' => $e->getTraceAsString(),
             //     'presensi_id' => $presensi->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -384,7 +384,7 @@ class NotificationService
             'Saturday' => 'Sabtu',
             'Sunday' => 'Minggu'
         ];
-        
+
         $months = [
             1 => 'Januari',
             2 => 'Februari',
@@ -399,12 +399,12 @@ class NotificationService
             11 => 'November',
             12 => 'Desember'
         ];
-        
+
         $dayName = $days[$date->format('l')] ?? $date->format('l');
         $day = $date->format('d');
         $month = $months[$date->format('n')] ?? $date->format('F');
         $year = $date->format('Y');
-        
+
         return "{$dayName}, {$day} {$month} {$year}";
     }
 
@@ -419,29 +419,29 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project.shiftProjects'
             ]);
-            
+
             $jadwal = $presensi->jadwalKaryawan;
             $karyawan = $jadwal->karyawanProject->karyawan;
             $project = $jadwal->karyawanProject->project;
-            
+
             // Get shift info
             $shift = $project->shiftProjects->where('kode', $jadwal->shift_code)->first();
 
             $tanggalObj = Carbon::parse($jadwal->tanggal);
             $tanggalFormatted = $this->formatTanggalIndonesia($tanggalObj);
-            
+
             $title = 'Tidak Presensi Pulang';
-            $body = "Anda tidak melakukan presensi pulang pada " . 
-                    $tanggalFormatted . 
-                    " shift {$jadwal->shift_code}";
-            
+            $body = "Anda tidak melakukan presensi pulang pada " .
+                $tanggalFormatted .
+                " shift {$jadwal->shift_code}";
+
             if ($shift) {
                 $body .= " ({$shift->waktu_mulai} - {$shift->waktu_selesai})";
             }
-            
+
             // Add project name
             $body .= " di project {$project->nama_project}";
-            
+
             $data = [
                 'type' => 'presensi_tidak_pulang',
                 'jadwal_id' => (string) $jadwal->id,
@@ -483,101 +483,99 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'presensi_id' => $presensi->id ?? null
             // ]);
-            
+
             return false;
         }
     }
 
     public function sendReminderNotification($karyawanId, $title, $body, $data)
-{
-    try {
-        // Log::info('📢 Sending reminder notification', [
-        //     'karyawan_id' => $karyawanId,
-        //     'title' => $title,
-        //     'type' => $data['type'] ?? 'unknown'
-        // ]);
+    {
+        try {
+            // Log::info('📢 Sending reminder notification', [
+            //     'karyawan_id' => $karyawanId,
+            //     'title' => $title,
+            //     'type' => $data['type'] ?? 'unknown'
+            // ]);
 
-        // Kirim push notification LANGSUNG (tidak disimpan ke DB)
-        $result = $this->firebaseService->sendToKaryawan(
-            $karyawanId,
-            $title,
-            $body,
-            $data
-        );
+            // Kirim push notification LANGSUNG (tidak disimpan ke DB)
+            $result = $this->firebaseService->sendToKaryawan(
+                $karyawanId,
+                $title,
+                $body,
+                $data
+            );
 
-        // ✅ FIX: Comprehensive result checking
-        $success = false;
-        $successCount = 0;
-        
-        if (is_array($result)) {
-            // Case 1: Standard success response
-            if (isset($result['success']) && $result['success'] === true) {
-                $success = true;
-                
-                // Try to get count from various possible keys
-                if (isset($result['success_count'])) {
-                    $successCount = $result['success_count'];
-                } elseif (isset($result['sent'])) {
-                    $successCount = $result['sent'];
-                } else {
-                    $successCount = 1; // Default to 1 if no count specified but success=true
+            // ✅ FIX: Comprehensive result checking
+            $success = false;
+            $successCount = 0;
+
+            if (is_array($result)) {
+                // Case 1: Standard success response
+                if (isset($result['success']) && $result['success'] === true) {
+                    $success = true;
+
+                    // Try to get count from various possible keys
+                    if (isset($result['success_count'])) {
+                        $successCount = $result['success_count'];
+                    } elseif (isset($result['sent'])) {
+                        $successCount = $result['sent'];
+                    } else {
+                        $successCount = 1; // Default to 1 if no count specified but success=true
+                    }
                 }
+                // Case 2: success_count exists (multicast response)
+                elseif (isset($result['success_count'])) {
+                    $successCount = (int) $result['success_count'];
+                    $success = $successCount > 0;
+                }
+                // Case 3: Check for 'sent' key
+                elseif (isset($result['sent'])) {
+                    $successCount = (int) $result['sent'];
+                    $success = $successCount > 0;
+                }
+                // Case 4: Check if there's message_id (single send success)
+                elseif (isset($result['message_id'])) {
+                    $success = true;
+                    $successCount = 1;
+                }
+            } elseif (is_bool($result)) {
+                $success = $result;
+                $successCount = $success ? 1 : 0;
             }
-            // Case 2: success_count exists (multicast response)
-            elseif (isset($result['success_count'])) {
-                $successCount = (int) $result['success_count'];
-                $success = $successCount > 0;
-            }
-            // Case 3: Check for 'sent' key
-            elseif (isset($result['sent'])) {
-                $successCount = (int) $result['sent'];
-                $success = $successCount > 0;
-            }
-            // Case 4: Check if there's message_id (single send success)
-            elseif (isset($result['message_id'])) {
-                $success = true;
-                $successCount = 1;
-            }
-        } 
-        elseif (is_bool($result)) {
-            $success = $result;
-            $successCount = $success ? 1 : 0;
-        }
 
-        if ($success && $successCount > 0) {
-            // Log::info('✅ Reminder notification sent successfully', [
+            if ($success && $successCount > 0) {
+                // Log::info('✅ Reminder notification sent successfully', [
+                //     'karyawan_id' => $karyawanId,
+                //     'title' => $title,
+                //     'success_count' => $successCount,
+                //     'full_result' => $result
+                // ]);
+                return true;
+            } else {
+                // Log::warning('⚠️ Reminder notification failed to send', [
+                //     'karyawan_id' => $karyawanId,
+                //     'title' => $title,
+                //     'success' => $success,
+                //     'success_count' => $successCount,
+                //     'full_result' => $result
+                // ]);
+                return false;
+            }
+        } catch (\Exception $e) {
+            // Log::error('❌ Error sending reminder notification', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString(),
             //     'karyawan_id' => $karyawanId,
-            //     'title' => $title,
-            //     'success_count' => $successCount,
-            //     'full_result' => $result
+            //     'title' => $title
             // ]);
-            return true;
-        } else {
-            // Log::warning('⚠️ Reminder notification failed to send', [
-            //     'karyawan_id' => $karyawanId,
-            //     'title' => $title,
-            //     'success' => $success,
-            //     'success_count' => $successCount,
-            //     'full_result' => $result
-            // ]);
+
             return false;
         }
-
-    } catch (\Exception $e) {
-        // Log::error('❌ Error sending reminder notification', [
-        //     'error' => $e->getMessage(),
-        //     'trace' => $e->getTraceAsString(),
-        //     'karyawan_id' => $karyawanId,
-        //     'title' => $title
-        // ]);
-        
-        return false;
     }
-}
 
     // Continue with other methods...
     // (Tukar shift, Lembur, etc. - apply same eager loading pattern)
-    
+
     /**
      * Send notification to target karyawan when someone requests shift swap
      */
@@ -592,16 +590,16 @@ class NotificationService
                 'jadwalTarget',
                 'project'
             ]);
-            
+
             $peminta = $tukarShift->peminta;
             $target = $tukarShift->target;
             $jadwalPeminta = $tukarShift->jadwalPeminta;
             $jadwalTarget = $tukarShift->jadwalTarget;
             $project = $tukarShift->project;
-            
+
             $title = 'Permintaan Tukar Shift Baru';
             $body = "{$peminta->nama} ingin menukar shift dengan Anda di project {$project->nama_project}";
-            
+
             $data = [
                 'type' => 'tukar_shift_request',
                 'tukar_shift_id' => (string) $tukarShift->id,
@@ -647,7 +645,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'tukar_shift_id' => $tukarShift->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -663,19 +661,19 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $karyawan = $pengajuanLembur->jadwalKaryawan->karyawanProject->karyawan;
             $project = $pengajuanLembur->jadwalKaryawan->karyawanProject->project;
-            
+
             $tanggalLembur = $pengajuanLembur->tanggal->format('d/m/Y');
-            
+
             $title = 'Pengajuan Lembur Disetujui';
             $body = "Pengajuan lembur Anda untuk tanggal {$tanggalLembur} di project {$project->nama_project} telah disetujui";
-            
+
             if ($pengajuanLembur->catatan_admin) {
                 $body .= ": " . $pengajuanLembur->catatan_admin;
             }
-            
+
             $data = [
                 'type' => 'lembur_approved',
                 'pengajuan_lembur_id' => (string) $pengajuanLembur->id,
@@ -712,7 +710,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'pengajuan_lembur_id' => $pengajuanLembur->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -728,19 +726,19 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $karyawan = $pengajuanLembur->jadwalKaryawan->karyawanProject->karyawan;
             $project = $pengajuanLembur->jadwalKaryawan->karyawanProject->project;
-            
+
             $tanggalLembur = $pengajuanLembur->tanggal->format('d/m/Y');
-            
+
             $title = 'Pengajuan Lembur Ditolak';
             $body = "Pengajuan lembur Anda untuk tanggal {$tanggalLembur} di project {$project->nama_project} ditolak";
-            
+
             if ($pengajuanLembur->catatan_admin) {
                 $body .= ": " . $pengajuanLembur->catatan_admin;
             }
-            
+
             $data = [
                 'type' => 'lembur_rejected',
                 'pengajuan_lembur_id' => (string) $pengajuanLembur->id,
@@ -777,7 +775,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'pengajuan_lembur_id' => $pengajuanLembur->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -793,15 +791,15 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $karyawan = $pengajuanLembur->jadwalKaryawan->karyawanProject->karyawan;
             $project = $pengajuanLembur->jadwalKaryawan->karyawanProject->project;
-            
+
             $tanggalLembur = $pengajuanLembur->tanggal->format('d/m/Y');
-            
+
             $title = 'Pengajuan Lembur Baru';
             $body = "{$karyawan->nama} mengajukan lembur untuk tanggal {$tanggalLembur} di project {$project->nama_project}";
-            
+
             $data = [
                 'type' => 'lembur_new',
                 'pengajuan_lembur_id' => (string) $pengajuanLembur->id,
@@ -810,13 +808,12 @@ class NotificationService
                 'karyawan_nik' => $karyawan->nik,
                 'tanggal' => $pengajuanLembur->tanggal->format('Y-m-d'),
                 'project_id' => (string) $project->id,
-                'project_nama' => $project->nama_project,
-                'click_action' => $this->getFrontendUrl() . '/pengajuan-lembur?id=' . $pengajuanLembur->id
+                'project_nama' => $project->nama_project
             ];
 
             // Get all admin users
             $adminUsers = User::all();
-            
+
             foreach ($adminUsers as $admin) {
                 // Create notification record in database
                 Notification::createForAdmin(
@@ -844,7 +841,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'pengajuan_lembur_id' => $pengajuanLembur->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -857,7 +854,7 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $jadwal = $presensi->jadwalKaryawan;
             $karyawan = $jadwal->karyawanProject->karyawan;
             $project = $jadwal->karyawanProject->project;
@@ -914,14 +911,14 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $jadwal = $presensi->jadwalKaryawan;
             $karyawan = $jadwal->karyawanProject->karyawan;
             $project = $jadwal->karyawanProject->project;
 
             $title = '❌ Lembur Ditolak';
             $body = "Presensi lembur Anda pada {$jadwal->tanggal} untuk shift {$jadwal->shift_code} di project {$project->nama_project} telah ditolak.";
-            
+
             if ($alasan) {
                 $body .= " Alasan: {$alasan}";
             }
@@ -982,14 +979,14 @@ class NotificationService
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ]);
-            
+
             $jadwal = $presensi->jadwalKaryawan;
             $karyawan = $jadwal->karyawanProject->karyawan;
             $project = $jadwal->karyawanProject->project;
 
             $title = '📝 Data Presensi Diperbarui Admin';
             $body = "Status presensi Anda pada {$jadwal->tanggal} shift {$jadwal->shift_code} di project {$project->nama_project} telah diubah dari {$statusLama} menjadi {$statusBaru}.";
-            
+
             if ($keterangan) {
                 $body .= " ({$keterangan})";
             }
@@ -1045,7 +1042,7 @@ class NotificationService
         try {
             // ✅ EAGER LOAD relationships
             $karyawanProject->load(['karyawan', 'project']);
-            
+
             $karyawan = $karyawanProject->karyawan;
             $project = $karyawanProject->project;
 
@@ -1056,7 +1053,7 @@ class NotificationService
             $title = '📅 Jadwal Baru Ditambahkan';
             $body = "Anda memiliki {$totalJadwal} jadwal baru di project {$project->nama_project} dari {$tanggalAwal} hingga {$tanggalAkhir}.";
 
-            $jadwalDetail = collect($jadwals)->map(function($j) {
+            $jadwalDetail = collect($jadwals)->map(function ($j) {
                 return [
                     'tanggal' => $j->tanggal,
                     'shift_code' => $j->shift_code
@@ -1109,7 +1106,7 @@ class NotificationService
         try {
             // ✅ EAGER LOAD relationships
             $karyawanProject->load(['karyawan', 'project']);
-            
+
             $karyawan = $karyawanProject->karyawan;
             $project = $karyawanProject->project;
 
@@ -1120,7 +1117,7 @@ class NotificationService
             $title = '📝 Jadwal Diperbarui';
             $body = "Jadwal Anda di project {$project->nama_project} telah diperbarui. {$totalJadwal} jadwal dari {$tanggalAwal} hingga {$tanggalAkhir}.";
 
-            $jadwalDetail = collect($jadwals)->map(function($j) {
+            $jadwalDetail = collect($jadwals)->map(function ($j) {
                 return [
                     'tanggal' => $j->tanggal,
                     'shift_code' => $j->shift_code
@@ -1183,16 +1180,16 @@ class NotificationService
                 'jadwalTarget',
                 'project'
             ]);
-            
+
             $peminta = $tukarShift->peminta;
             $target = $tukarShift->target;
             $jadwalPeminta = $tukarShift->jadwalPeminta;
             $jadwalTarget = $tukarShift->jadwalTarget;
             $project = $tukarShift->project;
-            
+
             $title = 'Permintaan Tukar Shift Disetujui';
             $body = "{$target->nama} menyetujui permintaan tukar shift Anda di project {$project->nama_project}";
-            
+
             $data = [
                 'type' => 'tukar_shift_approved',
                 'tukar_shift_id' => (string) $tukarShift->id,
@@ -1238,7 +1235,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'tukar_shift_id' => $tukarShift->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -1257,20 +1254,20 @@ class NotificationService
                 'jadwalTarget',
                 'project'
             ]);
-            
+
             $peminta = $tukarShift->peminta;
             $target = $tukarShift->target;
             $jadwalPeminta = $tukarShift->jadwalPeminta;
             $jadwalTarget = $tukarShift->jadwalTarget;
             $project = $tukarShift->project;
-            
+
             $title = 'Permintaan Tukar Shift Ditolak';
             $body = "{$target->nama} menolak permintaan tukar shift Anda di project {$project->nama_project}";
-            
+
             if ($tukarShift->alasan_penolakan) {
                 $body .= ": " . $tukarShift->alasan_penolakan;
             }
-            
+
             $data = [
                 'type' => 'tukar_shift_rejected',
                 'tukar_shift_id' => (string) $tukarShift->id,
@@ -1315,7 +1312,7 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'tukar_shift_id' => $tukarShift->id ?? null
             // ]);
-            
+
             return false;
         }
     }
@@ -1328,14 +1325,14 @@ class NotificationService
         try {
             // ✅ EAGER LOAD relationships
             $tukarShift->load(['peminta', 'target', 'project']);
-            
+
             $peminta = $tukarShift->peminta;
             $target = $tukarShift->target;
             $project = $tukarShift->project;
-            
+
             $title = 'Permintaan Tukar Shift Baru';
             $body = "{$peminta->nama} mengajukan tukar shift dengan {$target->nama} di project {$project->nama_project}";
-            
+
             $data = [
                 'type' => 'tukar_shift_pending',
                 'tukar_shift_id' => (string) $tukarShift->id,
@@ -1345,12 +1342,11 @@ class NotificationService
                 'target_nama' => $target->nama,
                 'project_id' => (string) $project->id,
                 'project_nama' => $project->nama_project,
-                'click_action' => $this->getFrontendUrl() . '/tukar-shift?project=' . $project->id
             ];
 
             // Get all admin users
             $adminUsers = User::all();
-            
+
             foreach ($adminUsers as $admin) {
                 // Create notification record in database
                 Notification::createForAdmin(
@@ -1379,95 +1375,95 @@ class NotificationService
             //     'error' => $e->getMessage(),
             //     'tukar_shift_id' => $tukarShift->id ?? null
             // ]);
-            
+
             return false;
         }
     }
 
     public function notifyKaryawanNewInformasi($informasi, $karyawanId)
-{
-    try {
-        $karyawan = \App\Models\Karyawan::find($karyawanId);
-        
-        if (!$karyawan) {
-            // Log::warning('Karyawan not found for informasi notification', [
+    {
+        try {
+            $karyawan = \App\Models\Karyawan::find($karyawanId);
+
+            if (!$karyawan) {
+                // Log::warning('Karyawan not found for informasi notification', [
+                //     'karyawan_id' => $karyawanId
+                // ]);
+                return false;
+            }
+
+            // ✅ PERBAIKAN: Get informasi_karyawan record untuk mendapatkan informasi_karyawan_id
+            $informasiKaryawan = \App\Models\InformasiKaryawan::where('informasi_id', $informasi->id)
+                ->where('karyawan_id', $karyawan->id)
+                ->first();
+
+            if (!$informasiKaryawan) {
+                // Log::warning('InformasiKaryawan not found', [
+                //     'informasi_id' => $informasi->id,
+                //     'karyawan_id' => $karyawan->id
+                // ]);
+                return false;
+            }
+
+            $title = '📢 Informasi Baru';
+            $body = $informasi->judul;
+
+            // Limit body to 100 chars for preview
+            if (strlen($body) > 100) {
+                $body = substr($body, 0, 100) . '...';
+            }
+
+            $data = [
+                // ✅ FIX: Gunakan type yang konsisten dengan Flutter handler
+                'type' => 'informasi_baru',  // ✅ SESUAI dengan Flutter handler
+
+                // ✅ FIX: Kirim informasi_karyawan_id, bukan informasi_id
+                'informasi_karyawan_id' => (string) $informasiKaryawan->id,  // ✅ CRITICAL
+
+                // Optional: kirim juga informasi_id untuk referensi
+                'informasi_id' => (string) $informasi->id,
+
+                'judul' => $informasi->judul,
+                'konten_preview' => Str::limit($informasi->konten, 100),
+                'has_file' => !empty($informasi->file_path),
+                'file_name' => $informasi->file_name,
+                'dikirim_at' => $informasi->dikirim_at?->format('Y-m-d H:i:s'),
+
+                // ✅ Navigation info untuk Flutter
+                'screen' => 'informasi_detail',
+                'screen_params' => json_encode(['informasi_karyawan_id' => $informasiKaryawan->id])
+            ];
+
+            // Create notification record in database
+            Notification::createForKaryawan(
+                $karyawan->id,
+                'informasi_baru',  // ✅ Konsisten dengan type di data
+                $title,
+                $body,
+                $data,
+                $informasi
+            );
+
+            // Send push notification
+            $this->firebaseService->sendToKaryawan($karyawan->id, $title, $body, $data);
+
+            // Log::info('✅ Karyawan notified for new informasi', [
+            //     'informasi_id' => $informasi->id,
+            //     'informasi_karyawan_id' => $informasiKaryawan->id,
+            //     'karyawan_id' => $karyawan->id,
+            //     'karyawan_nama' => $karyawan->nama
+            // ]);
+
+            return true;
+        } catch (\Exception $e) {
+            // Log::error('❌ Failed to notify karyawan for new informasi', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString(),
+            //     'informasi_id' => $informasi->id ?? null,
             //     'karyawan_id' => $karyawanId
             // ]);
+
             return false;
         }
-
-        // ✅ PERBAIKAN: Get informasi_karyawan record untuk mendapatkan informasi_karyawan_id
-        $informasiKaryawan = \App\Models\InformasiKaryawan::where('informasi_id', $informasi->id)
-                                                          ->where('karyawan_id', $karyawan->id)
-                                                          ->first();
-
-        if (!$informasiKaryawan) {
-            // Log::warning('InformasiKaryawan not found', [
-            //     'informasi_id' => $informasi->id,
-            //     'karyawan_id' => $karyawan->id
-            // ]);
-            return false;
-        }
-
-        $title = '📢 Informasi Baru';
-        $body = $informasi->judul;
-        
-        // Limit body to 100 chars for preview
-        if (strlen($body) > 100) {
-            $body = substr($body, 0, 100) . '...';
-        }
-
-        $data = [
-            // ✅ FIX: Gunakan type yang konsisten dengan Flutter handler
-            'type' => 'informasi_baru',  // ✅ SESUAI dengan Flutter handler
-            
-            // ✅ FIX: Kirim informasi_karyawan_id, bukan informasi_id
-            'informasi_karyawan_id' => (string) $informasiKaryawan->id,  // ✅ CRITICAL
-            
-            // Optional: kirim juga informasi_id untuk referensi
-            'informasi_id' => (string) $informasi->id,
-            
-            'judul' => $informasi->judul,
-            'konten_preview' => \Str::limit($informasi->konten, 100),
-            'has_file' => !empty($informasi->file_path),
-            'file_name' => $informasi->file_name,
-            'dikirim_at' => $informasi->dikirim_at?->format('Y-m-d H:i:s'),
-            
-            // ✅ Navigation info untuk Flutter
-            'screen' => 'informasi_detail',
-            'screen_params' => json_encode(['informasi_karyawan_id' => $informasiKaryawan->id])
-        ];
-
-        // Create notification record in database
-        Notification::createForKaryawan(
-            $karyawan->id,
-            'informasi_baru',  // ✅ Konsisten dengan type di data
-            $title,
-            $body,
-            $data,
-            $informasi
-        );
-
-        // Send push notification
-        $this->firebaseService->sendToKaryawan($karyawan->id, $title, $body, $data);
-
-        // Log::info('✅ Karyawan notified for new informasi', [
-        //     'informasi_id' => $informasi->id,
-        //     'informasi_karyawan_id' => $informasiKaryawan->id,
-        //     'karyawan_id' => $karyawan->id,
-        //     'karyawan_nama' => $karyawan->nama
-        // ]);
-
-        return true;
-    } catch (\Exception $e) {
-        // Log::error('❌ Failed to notify karyawan for new informasi', [
-        //     'error' => $e->getMessage(),
-        //     'trace' => $e->getTraceAsString(),
-        //     'informasi_id' => $informasi->id ?? null,
-        //     'karyawan_id' => $karyawanId
-        // ]);
-        
-        return false;
     }
-}
 }

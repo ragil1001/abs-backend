@@ -12,30 +12,30 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // public function registerAdmin(Request $request)
-    // {
-    //     $request->validate([
-    //         'username' => 'required|string|max:255|unique:users',
-    //         'password' => 'required|string|min:6|confirmed',
-    //     ]);
+    public function registerAdmin(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|string|max:255|unique:users',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
 
-    //     $user = User::create([
-    //         'username' => $request->username,
-    //         'password' => Hash::make($request->password),
-    //     ]);
+        $user = User::create([
+            'username' => $request->username,
+            'password' => Hash::make($request->password),
+        ]);
 
-    //     $token = $user->createToken('admin-token')->plainTextToken;
+        $token = $user->createToken('admin-token')->plainTextToken;
 
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Admin registered successfully',
-    //         'data' => [
-    //             'user' => $user,
-    //             'token' => $token,
-    //             'token_type' => 'Bearer'
-    //         ]
-    //     ], 201);
-    // }
+        return response()->json([
+            'success' => true,
+            'message' => 'Admin registered successfully',
+            'data' => [
+                'user' => $user,
+                'token' => $token,
+                'token_type' => 'Bearer'
+            ]
+        ], 201);
+    }
 
     public function loginAdmin(Request $request)
     {
@@ -127,7 +127,7 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        
+        // Verify current password
         if (!Hash::check($request->current_password, $user->password)) {
             return response()->json([
                 'success' => false,
@@ -138,7 +138,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        
+        // Check if new password is same as current
         if (Hash::check($request->new_password, $user->password)) {
             return response()->json([
                 'success' => false,
@@ -149,7 +149,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        
+        // Update password
         $user->update([
             'password' => Hash::make($request->new_password)
         ]);

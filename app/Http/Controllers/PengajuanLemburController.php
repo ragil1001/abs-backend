@@ -14,9 +14,9 @@ use Carbon\Carbon;
 
 class PengajuanLemburController extends Controller
 {
-    
-    
-    
+
+
+
     public function index(Request $request, $projectId)
     {
         try {
@@ -26,26 +26,26 @@ class PengajuanLemburController extends Controller
                 'admin'
             ])->byProject($projectId);
 
-            
+
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
 
-            
+
             if ($request->has('start_date') && $request->has('end_date')) {
                 $query->betweenDates($request->start_date, $request->end_date);
             }
 
-            
+
             if ($request->has('search')) {
                 $search = $request->search;
-                $query->whereHas('jadwalKaryawan.karyawanProject.karyawan', function($q) use ($search) {
+                $query->whereHas('jadwalKaryawan.karyawanProject.karyawan', function ($q) use ($search) {
                     $q->where('nama', 'like', '%' . $search . '%')
-                      ->orWhere('nik', 'like', '%' . $search . '%');
+                        ->orWhere('nik', 'like', '%' . $search . '%');
                 });
             }
 
-            
+
             $sortField = $request->input('sort_field', 'created_at');
             $sortDirection = $request->input('sort_direction', 'desc');
             $query->orderBy($sortField, $sortDirection);
@@ -53,9 +53,9 @@ class PengajuanLemburController extends Controller
             $perPage = $request->input('per_page', 10);
             $result = $query->paginate($perPage);
 
-            $data = $result->map(function($pengajuan) {
+            $data = $result->map(function ($pengajuan) {
                 $karyawan = $pengajuan->jadwalKaryawan->karyawanProject->karyawan;
-                
+
                 return [
                     'id' => $pengajuan->id,
                     'karyawan' => [
@@ -91,11 +91,10 @@ class PengajuanLemburController extends Controller
                     'last_page' => $result->lastPage(),
                 ]
             ]);
-
         } catch (\Exception $e) {
-            
-            
-            
+
+
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memuat data pengajuan lembur: ' . $e->getMessage()
@@ -103,7 +102,7 @@ class PengajuanLemburController extends Controller
         }
     }
 
-    
+
     public function prosesPengajuan(Request $request, $pengajuanId)
     {
         $request->validate([
@@ -117,14 +116,14 @@ class PengajuanLemburController extends Controller
         DB::beginTransaction();
         try {
             $admin = $request->user();
-            
-            
+
+
             $pengajuan = PengajuanLembur::with([
                 'jadwalKaryawan.karyawanProject.karyawan',
                 'jadwalKaryawan.karyawanProject.project'
             ])->findOrFail($pengajuanId);
 
-            
+
             if ($pengajuan->status !== 'pending') {
                 return response()->json([
                     'success' => false,
@@ -135,63 +134,32 @@ class PengajuanLemburController extends Controller
             $karyawan = $pengajuan->jadwalKaryawan->karyawanProject->karyawan;
             $tanggalLembur = $pengajuan->tanggal->format('d/m/Y');
 
-            
+
             if ($request->action === 'setujui') {
                 try {
                     $pengajuan->setujui($admin->id, $request->catatan);
-                    
+
                     $message = 'Pengajuan lembur berhasil disetujui';
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
                 } catch (\Exception $e) {
-                    
+
                     throw $e;
                 }
             } else {
-                
+
                 if (empty(trim($request->catatan))) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Catatan wajib diisi saat menolak pengajuan lembur'
                     ], 422);
                 }
-                
+
                 $pengajuan->tolak($admin->id, $request->catatan);
                 $message = 'Pengajuan lembur berhasil ditolak';
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
             }
 
             DB::commit();
 
-            
+
             $pengajuan = PengajuanLembur::with([
                 'jadwalKaryawan.karyawanProject.karyawan.divisi',
                 'jadwalKaryawan.karyawanProject.karyawan.jabatan',
@@ -210,13 +178,12 @@ class PengajuanLemburController extends Controller
                     'diproses_oleh' => $pengajuan->admin->username
                 ]
             ]);
-
         } catch (\Exception $e) {
             DB::rollback();
-            
-            
-            
-            
+
+
+
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memproses pengajuan: ' . $e->getMessage()
@@ -224,7 +191,7 @@ class PengajuanLemburController extends Controller
         }
     }
 
-    
+
     public function show($pengajuanId)
     {
         try {
@@ -235,6 +202,15 @@ class PengajuanLemburController extends Controller
             ])->findOrFail($pengajuanId);
 
             $karyawan = $pengajuan->jadwalKaryawan->karyawanProject->karyawan;
+
+            // Ambil data presensi
+            $presensiMasuk = Presensi::where('jadwal_karyawan_id', $pengajuan->jadwal_karyawan_id)
+                ->where('tipe', 'masuk')
+                ->first();
+
+            $presensiPulang = Presensi::where('jadwal_karyawan_id', $pengajuan->jadwal_karyawan_id)
+                ->where('tipe', 'pulang')
+                ->first();
 
             return response()->json([
                 'success' => true,
@@ -259,13 +235,20 @@ class PengajuanLemburController extends Controller
                     'catatan_admin' => $pengajuan->catatan_admin,
                     'diproses_pada' => $pengajuan->diproses_pada?->format('Y-m-d H:i:s'),
                     'diproses_oleh' => $pengajuan->admin?->username,
-                    'created_at' => $pengajuan->created_at->format('Y-m-d H:i:s')
+                    'created_at' => $pengajuan->created_at->format('Y-m-d H:i:s'),
+                    'presensi_masuk' => $presensiMasuk ? [
+                        'waktu' => $presensiMasuk->waktu,
+                        'status' => $presensiMasuk->status,
+                        'keterangan' => $presensiMasuk->keterangan
+                    ] : null,
+                    'presensi_pulang' => $presensiPulang ? [
+                        'waktu' => $presensiPulang->waktu,
+                        'status' => $presensiPulang->status,
+                        'keterangan' => $presensiPulang->keterangan
+                    ] : null
                 ]
             ]);
-
         } catch (\Exception $e) {
-            
-            
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memuat detail pengajuan: ' . $e->getMessage()
@@ -273,18 +256,17 @@ class PengajuanLemburController extends Controller
         }
     }
 
-    
     public function hapusPengajuan(Request $request, $pengajuanId)
     {
         DB::beginTransaction();
         try {
             $user = $request->user();
             $pengajuan = PengajuanLembur::with('jadwalKaryawan.karyawanProject')
-                                        ->findOrFail($pengajuanId);
+                ->findOrFail($pengajuanId);
 
-            
-            $isOwner = isset($pengajuan->jadwalKaryawan->karyawanProject->karyawan_id) && 
-                       $pengajuan->jadwalKaryawan->karyawanProject->karyawan_id === $user->id;
+
+            $isOwner = isset($pengajuan->jadwalKaryawan->karyawanProject->karyawan_id) &&
+                $pengajuan->jadwalKaryawan->karyawanProject->karyawan_id === $user->id;
             $isAdmin = $user->role === 'admin';
 
             if (!$isOwner && !$isAdmin) {
@@ -294,7 +276,7 @@ class PengajuanLemburController extends Controller
                 ], 403);
             }
 
-            
+
             if (!in_array($pengajuan->status, ['dibatalkan', 'ditolak'])) {
                 return response()->json([
                     'success' => false,
@@ -302,12 +284,12 @@ class PengajuanLemburController extends Controller
                 ], 400);
             }
 
-            
+
             if ($pengajuan->file_skl && Storage::exists('public/' . $pengajuan->file_skl)) {
                 Storage::delete('public/' . $pengajuan->file_skl);
             }
 
-            
+
             $pengajuan->delete();
 
             DB::commit();
@@ -316,12 +298,11 @@ class PengajuanLemburController extends Controller
                 'success' => true,
                 'message' => 'Pengajuan lembur berhasil dihapus'
             ]);
-
         } catch (\Exception $e) {
             DB::rollback();
-            
-            
-            
+
+
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal menghapus pengajuan: ' . $e->getMessage()
@@ -329,13 +310,13 @@ class PengajuanLemburController extends Controller
         }
     }
 
-    
+
     public function getSummary($projectId, Request $request)
     {
         try {
             $query = PengajuanLembur::byProject($projectId);
 
-            
+
             if ($request->has('start_date') && $request->has('end_date')) {
                 $query->betweenDates($request->start_date, $request->end_date);
             }
@@ -356,10 +337,9 @@ class PengajuanLemburController extends Controller
                     'dibatalkan' => $dibatalkan
                 ]
             ]);
-
         } catch (\Exception $e) {
-            
-            
+
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memuat summary: ' . $e->getMessage()
@@ -367,15 +347,15 @@ class PengajuanLemburController extends Controller
         }
     }
 
-    
 
-    
+
+
     public function getMyPengajuan(Request $request)
     {
         try {
             $karyawan = $request->user();
             $karyawanProject = $karyawan->activeProject;
-            
+
             if (!$karyawanProject) {
                 return response()->json([
                     'success' => false,
@@ -384,13 +364,13 @@ class PengajuanLemburController extends Controller
             }
 
             $pengajuans = PengajuanLembur::with(['jadwalKaryawan', 'admin'])
-                                         ->whereHas('jadwalKaryawan', function($q) use ($karyawanProject) {
-                                             $q->where('karyawan_project_id', $karyawanProject->id);
-                                         })
-                                         ->orderBy('created_at', 'desc')
-                                         ->get();
+                ->whereHas('jadwalKaryawan', function ($q) use ($karyawanProject) {
+                    $q->where('karyawan_project_id', $karyawanProject->id);
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-            $data = $pengajuans->map(function($pengajuan) {
+            $data = $pengajuans->map(function ($pengajuan) {
                 return [
                     'id' => $pengajuan->id,
                     'tanggal' => $pengajuan->tanggal->format('Y-m-d'),
@@ -413,11 +393,10 @@ class PengajuanLemburController extends Controller
                 'success' => true,
                 'data' => $data->values()->all()
             ]);
-
         } catch (\Exception $e) {
-            
-            
-            
+
+
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memuat data pengajuan: ' . $e->getMessage()
@@ -425,167 +404,165 @@ class PengajuanLemburController extends Controller
         }
     }
 
-    
+
     public function ajukanLembur(Request $request)
-{
-    $request->validate([
-        'tanggal' => 'required|date',
-        'file_skl' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
-        'jam_mulai' => 'required|date_format:H:i',
-        'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
-        'keterangan_karyawan' => 'nullable|string|max:500'
-    ], [
-        'tanggal.required' => 'Tanggal lembur wajib diisi',
-        'file_skl.required' => 'File SKL wajib diupload',
-        'file_skl.mimes' => 'Format file harus PDF, JPG, JPEG, atau PNG',
-        'file_skl.max' => 'Ukuran file maksimal 10MB',
-        'jam_mulai.required' => 'Jam mulai wajib diisi',
-        'jam_mulai.date_format' => 'Format jam mulai tidak valid (HH:mm)',
-        'jam_selesai.required' => 'Jam selesai wajib diisi',
-        'jam_selesai.date_format' => 'Format jam selesai tidak valid (HH:mm)',
-        'jam_selesai.after' => 'Jam selesai harus setelah jam mulai'
-    ]);
-
-    DB::beginTransaction();
-    try {
-        $karyawan = $request->user();
-        $karyawanProject = $karyawan->activeProject;
-        
-        if (!$karyawanProject) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Anda belum terdaftar di project manapun'
-            ], 404);
-        }
-
-        $tanggal = $request->tanggal;
-        
-        $jadwal = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
-                                ->whereDate('tanggal', $tanggal)
-                                ->first();
-
-        if (!$jadwal) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Tanggal tidak ditemukan dalam jadwal Anda.'
-            ], 404);
-        }
-
-        $shiftCode = strtoupper(trim($jadwal->shift_code));
-        $kodeHari = ($shiftCode === 'L') ? 'L' : 'K';
-
-        $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
-                                 ->where('tipe', 'masuk')
-                                 ->first();
-
-        if (!$presensiMasuk) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Anda belum melakukan presensi masuk untuk tanggal ini. Lakukan presensi masuk terlebih dahulu.'
-            ], 400);
-        }
-
-        // Check status presensi masuk
-        $allowedStatusMasuk = ['hadir', 'terlambat'];
-        
-        if (!in_array($presensiMasuk->status, $allowedStatusMasuk)) {
-            return response()->json([
-                'success' => false,
-                'message' => "Tidak dapat mengajukan lembur. Status presensi masuk Anda adalah '{$presensiMasuk->status}'. Hanya presensi dengan status 'hadir' atau 'terlambat' yang dapat mengajukan lembur."
-            ], 400);
-        }
-
-        if (PengajuanLembur::sudahMengajukanLembur($jadwal->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Anda sudah memiliki pengajuan lembur untuk tanggal ini'
-            ], 400);
-        }
-
-        $storedPath = null;
-        try {
-            $file = $request->file('file_skl');
-            $extension = $file->getClientOriginalExtension();
-            $fileName = 'skl_' . $karyawan->id . '_' . time() . '.' . $extension;
-            $path = 'lembur/' . date('Y/m');
-            $storedPath = $file->storeAs($path, $fileName, 'public');
-            
-        } catch (\Exception $e) {
-            throw new \Exception("Gagal mengupload file: " . $e->getMessage());
-        }
-
-        $pengajuan = PengajuanLembur::create([
-            'jadwal_karyawan_id' => $jadwal->id,
-            'tanggal' => $tanggal,
-            'kode_hari' => $kodeHari,
-            'jam_mulai' => $request->jam_mulai,
-            'jam_selesai' => $request->jam_selesai,
-            'file_skl' => $storedPath,
-            'keterangan_karyawan' => $request->keterangan_karyawan,
-            'status' => 'pending'
+    {
+        $request->validate([
+            'tanggal' => 'required|date',
+            'file_skl' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'jam_mulai' => 'date_format:H:i',
+            'jam_selesai' => 'date_format:H:i|after:jam_mulai',
+            'keterangan_karyawan' => 'nullable|string|max:500'
+        ], [
+            'tanggal.required' => 'Tanggal lembur wajib diisi',
+            'file_skl.required' => 'File SKL wajib diupload',
+            'file_skl.mimes' => 'Format file harus PDF, JPG, JPEG, atau PNG',
+            'file_skl.max' => 'Ukuran file maksimal 10MB',
+            // 'jam_mulai.required' => 'Jam mulai wajib diisi',
+            // 'jam_mulai.date_format' => 'Format jam mulai tidak valid (HH:mm)',
+            // 'jam_selesai.required' => 'Jam selesai wajib diisi',
+            // 'jam_selesai.date_format' => 'Format jam selesai tidak valid (HH:mm)',
+            // 'jam_selesai.after' => 'Jam selesai harus setelah jam mulai'
         ]);
 
-        $presensiPulang = Presensi::where('jadwal_karyawan_id', $jadwal->id)
-                                  ->where('tipe', 'pulang')
-                                  ->first();
+        DB::beginTransaction();
+        try {
+            $karyawan = $request->user();
+            $karyawanProject = $karyawan->activeProject;
 
-        if ($presensiPulang && !in_array($presensiPulang->status, ['lembur_pending', 'lembur'])) {
-            $keteranganLama = $presensiPulang->keterangan;
-            
-            if ($kodeHari === 'L') {
-                $presensiPulang->update([
-                    'status' => 'lembur_pending',
-                    'keterangan' => "Pulang di hari libur - menunggu konfirmasi lembur (Jam kerja: {$request->jam_mulai} - {$request->jam_selesai})"
-                ]);
-            } else {
-                $presensiPulang->update([
-                    'status' => 'lembur_pending',
-                    'keterangan' => "Lembur pending (Jam kerja: {$request->jam_mulai} - {$request->jam_selesai}) - menunggu konfirmasi admin" . 
-                                   ($keteranganLama ? " (Sebelumnya: {$keteranganLama})" : '')
-                ]);
+            if (!$karyawanProject) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda belum terdaftar di project manapun'
+                ], 404);
             }
+
+            $tanggal = $request->tanggal;
+
+            $jadwal = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
+                ->whereDate('tanggal', $tanggal)
+                ->first();
+
+            if (!$jadwal) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tanggal tidak ditemukan dalam jadwal Anda.'
+                ], 404);
+            }
+
+            $shiftCode = strtoupper(trim($jadwal->shift_code));
+            $kodeHari = ($shiftCode === 'L') ? 'L' : 'K';
+
+            $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
+                ->where('tipe', 'masuk')
+                ->first();
+
+            if (!$presensiMasuk) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda belum melakukan presensi masuk untuk tanggal ini. Lakukan presensi masuk terlebih dahulu.'
+                ], 400);
+            }
+
+            // Check status presensi masuk
+            $allowedStatusMasuk = ['hadir', 'terlambat'];
+
+            if (!in_array($presensiMasuk->status, $allowedStatusMasuk)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Tidak dapat mengajukan lembur. Status presensi masuk Anda adalah '{$presensiMasuk->status}'. Hanya presensi dengan status 'hadir' atau 'terlambat' yang dapat mengajukan lembur."
+                ], 400);
+            }
+
+            if (PengajuanLembur::sudahMengajukanLembur($jadwal->id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah memiliki pengajuan lembur untuk tanggal ini'
+                ], 400);
+            }
+
+            $storedPath = null;
+            try {
+                $file = $request->file('file_skl');
+                $extension = $file->getClientOriginalExtension();
+                $fileName = 'skl_' . $karyawan->id . '_' . time() . '.' . $extension;
+                $path = 'lembur/' . date('Y/m');
+                $storedPath = $file->storeAs($path, $fileName, 'public');
+            } catch (\Exception $e) {
+                throw new \Exception("Gagal mengupload file: " . $e->getMessage());
+            }
+
+            $pengajuan = PengajuanLembur::create([
+                'jadwal_karyawan_id' => $jadwal->id,
+                'tanggal' => $tanggal,
+                'kode_hari' => $kodeHari,
+                'jam_mulai' => $request->jam_mulai,
+                'jam_selesai' => $request->jam_selesai,
+                'file_skl' => $storedPath,
+                'keterangan_karyawan' => $request->keterangan_karyawan,
+                'status' => 'pending'
+            ]);
+
+            $presensiPulang = Presensi::where('jadwal_karyawan_id', $jadwal->id)
+                ->where('tipe', 'pulang')
+                ->first();
+
+            if ($presensiPulang && !in_array($presensiPulang->status, ['lembur_pending', 'lembur'])) {
+                $keteranganLama = $presensiPulang->keterangan;
+
+                if ($kodeHari === 'L') {
+                    $presensiPulang->update([
+                        'status' => 'lembur_pending',
+                        'keterangan' => "Pulang di hari libur - menunggu konfirmasi lembur (Jam kerja: {$request->jam_mulai} - {$request->jam_selesai})"
+                    ]);
+                } else {
+                    $presensiPulang->update([
+                        'status' => 'lembur_pending',
+                        'keterangan' => "Lembur pending (Jam kerja: {$request->jam_mulai} - {$request->jam_selesai}) - menunggu konfirmasi admin" .
+                            ($keteranganLama ? " (Sebelumnya: {$keteranganLama})" : '')
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pengajuan lembur berhasil dikirim',
+                'data' => [
+                    'id' => $pengajuan->id,
+                    'tanggal' => $pengajuan->tanggal->format('Y-m-d'),
+                    'kode_hari' => $pengajuan->kode_hari,
+                    'kode_hari_text' => $pengajuan->kode_hari_text,
+                    'jam_mulai' => $pengajuan->jam_mulai,
+                    'jam_selesai' => $pengajuan->jam_selesai,
+                    'file_skl_url' => $pengajuan->file_skl_url,
+                    'keterangan_karyawan' => $pengajuan->keterangan_karyawan,
+                    'status' => $pengajuan->status,
+                    'created_at' => $pengajuan->created_at->format('Y-m-d H:i:s')
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            if (isset($storedPath) && Storage::disk('public')->exists($storedPath)) {
+                Storage::disk('public')->delete($storedPath);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengajukan lembur: ' . $e->getMessage()
+            ], 500);
         }
-
-        DB::commit();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pengajuan lembur berhasil dikirim',
-            'data' => [
-                'id' => $pengajuan->id,
-                'tanggal' => $pengajuan->tanggal->format('Y-m-d'),
-                'kode_hari' => $pengajuan->kode_hari,
-                'kode_hari_text' => $pengajuan->kode_hari_text,
-                'jam_mulai' => $pengajuan->jam_mulai,
-                'jam_selesai' => $pengajuan->jam_selesai,
-                'file_skl_url' => $pengajuan->file_skl_url,
-                'keterangan_karyawan' => $pengajuan->keterangan_karyawan,
-                'status' => $pengajuan->status,
-                'created_at' => $pengajuan->created_at->format('Y-m-d H:i:s')
-            ]
-        ], 201);
-
-    } catch (\Exception $e) {
-        DB::rollback();
-        
-        if (isset($storedPath) && Storage::disk('public')->exists($storedPath)) {
-            Storage::disk('public')->delete($storedPath);
-        }
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal mengajukan lembur: ' . $e->getMessage()
-        ], 500);
     }
-}
-    
+
     public function batalkanPengajuan(Request $request, $pengajuanId)
     {
         DB::beginTransaction();
         try {
             $karyawan = $request->user();
             $pengajuan = PengajuanLembur::with('jadwalKaryawan.karyawanProject')
-                                        ->findOrFail($pengajuanId);
+                ->findOrFail($pengajuanId);
 
             if ($pengajuan->jadwalKaryawan->karyawanProject->karyawan_id !== $karyawan->id) {
                 return response()->json([
@@ -609,16 +586,90 @@ class PengajuanLemburController extends Controller
                 'success' => true,
                 'message' => 'Pengajuan lembur berhasil dibatalkan'
             ]);
-
         } catch (\Exception $e) {
             DB::rollback();
-            
-            
-            
+
+
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal membatalkan pengajuan: ' . $e->getMessage()
             ], 500);
         }
     }
+    
+    public function downloadFiles(Request $request)
+{
+    $request->validate([
+        'pengajuan_ids' => 'required|array',
+        'pengajuan_ids.*' => 'integer|exists:pengajuan_lemburs,id'
+    ]);
+
+    try {
+        $pengajuans = PengajuanLembur::with('jadwalKaryawan.karyawanProject.karyawan')
+            ->whereIn('id', $request->pengajuan_ids)
+            ->get();
+
+        $filesData = [];
+        
+        foreach ($pengajuans as $pengajuan) {
+            // Cek apakah ada file_skl
+            if (!$pengajuan->file_skl) {
+                Log::warning("No file_skl for pengajuan ID: {$pengajuan->id}");
+                continue;
+            }
+
+            // PERBAIKAN: Langsung gunakan path relatif tanpa 'public/' prefix
+            // karena Storage::disk('public') sudah mengarah ke storage/app/public
+            $filePath = $pengajuan->file_skl;
+            
+            // Cek apakah file exists di storage public disk
+            if (!Storage::disk('public')->exists($filePath)) {
+                Log::warning("File not found: {$filePath} for pengajuan ID: {$pengajuan->id}");
+                continue;
+            }
+
+            try {
+                $karyawan = $pengajuan->jadwalKaryawan->karyawanProject->karyawan;
+                $extension = pathinfo($pengajuan->file_skl, PATHINFO_EXTENSION);
+                
+                // Ambil konten file dari storage public disk
+                $fileContent = Storage::disk('public')->get($filePath);
+                
+                $filesData[] = [
+                    'content' => base64_encode($fileContent),
+                    'filename' => "SKL_{$karyawan->nama}_{$karyawan->nik}_{$pengajuan->tanggal->format('Y-m-d')}.{$extension}",
+                    'mime_type' => Storage::disk('public')->mimeType($filePath),
+                    'size' => Storage::disk('public')->size($filePath)
+                ];
+                
+                Log::info("Successfully processed file for pengajuan ID: {$pengajuan->id}, path: {$filePath}");
+            } catch (\Exception $fileError) {
+                Log::error("Error processing file for pengajuan ID {$pengajuan->id}: " . $fileError->getMessage());
+                continue;
+            }
+        }
+
+        if (empty($filesData)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada file SKL yang dapat didownload. File mungkin sudah dihapus atau tidak tersedia.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $filesData,
+            'count' => count($filesData)
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Download files error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal mengambil file: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

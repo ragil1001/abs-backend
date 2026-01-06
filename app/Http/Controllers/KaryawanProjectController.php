@@ -1,5 +1,5 @@
 <?php
-
+// app/Http/Controllers/KaryawanProjectController.php
 
 namespace App\Http\Controllers;
 
@@ -15,27 +15,27 @@ use Carbon\Carbon;
 
 class KaryawanProjectController extends Controller
 {
-    
+    // Get all assignments dengan filter
     public function index(Request $request)
     {
         $assignments = KaryawanProject::with(['karyawan.divisi', 'karyawan.jabatan', 'project']);
 
-        
+        // Filter by project
         if ($request->has('project_id') && $request->project_id !== 'all') {
             $assignments->where('project_id', $request->project_id);
         }
 
-        
+        // Filter by karyawan
         if ($request->has('karyawan_id')) {
             $assignments->where('karyawan_id', $request->karyawan_id);
         }
 
-        
+        // Filter by status
         if ($request->has('status') && $request->status !== 'all') {
             $assignments->where('status', $request->status);
         }
 
-        
+        // Search
         if ($request->has('search')) {
             $search = $request->search;
             $assignments->whereHas('karyawan', function($q) use ($search) {
@@ -44,7 +44,7 @@ class KaryawanProjectController extends Controller
             });
         }
 
-        
+        // Sorting
         $sortField = $request->input('sort_field', 'tanggal_assign');
         $sortDirection = $request->input('sort_direction', 'desc');
         $assignments->orderBy($sortField, $sortDirection);
@@ -64,36 +64,36 @@ class KaryawanProjectController extends Controller
         ]);
     }
 
-    
-
-
+    // ============================================
+// 5. KARYAWAN PROJECT CONTROLLER - FIXED
+// ============================================
 
 public function getByProject($projectId, Request $request)
 {
-    
+    // Load with nullable divisi support
     $assignments = KaryawanProject::with(['karyawan.divisi', 'karyawan.jabatan'])
         ->where('project_id', $projectId);
 
-    
+    // Filter by status
     if ($request->has('status') && $request->status !== 'all') {
         $assignments->where('status', $request->status);
     }
 
-    
+    // Filter by division
     if ($request->has('divisi_id') && $request->divisi_id !== 'all') {
         $assignments->whereHas('karyawan', function($q) use ($request) {
             $q->where('divisi_id', $request->divisi_id);
         });
     }
 
-    
+    // Filter by position
     if ($request->has('jabatan_id') && $request->jabatan_id !== 'all') {
         $assignments->whereHas('karyawan', function($q) use ($request) {
             $q->where('jabatan_id', $request->jabatan_id);
         });
     }
 
-    
+    // Search by name or NIK
     if ($request->has('search') && $request->search !== '') {
         $search = $request->search;
         $assignments->whereHas('karyawan', function($q) use ($search) {
@@ -102,7 +102,7 @@ public function getByProject($projectId, Request $request)
         });
     }
 
-    
+    // Sorting
     $sortField = $request->input('sort_field', 'tanggal_assign');
     $sortDirection = $request->input('sort_direction', 'desc');
 
@@ -114,14 +114,14 @@ public function getByProject($projectId, Request $request)
         $assignments->orderBy($sortField, $sortDirection);
     }
 
-    
+    // Pagination
     $perPage = $request->input('per_page', 10);
     $result = $assignments->paginate($perPage);
 
-    
+    // Get project info
     $project = Project::with('shiftProjects')->find($projectId);
 
-    
+    // ✅ FIXED response mapping (divisi nullable)
     $data = $result->map(function ($assignment) {
         $karyawan = $assignment->karyawan;
         return [
@@ -165,7 +165,7 @@ public function getByProject($projectId, Request $request)
 }
 
 
-    
+    // Assign karyawan ke project (single or multiple)
     public function store(Request $request)
     {
         $request->validate([
@@ -191,7 +191,7 @@ public function getByProject($projectId, Request $request)
 
             foreach ($request->karyawan_ids as $karyawanId) {
                 try {
-                    
+                    // Cek apakah karyawan sudah aktif di project lain
                     $hasActiveProject = KaryawanProject::checkKaryawanHasActiveProject($karyawanId);
                     
                     if ($hasActiveProject) {
@@ -200,7 +200,7 @@ public function getByProject($projectId, Request $request)
                         continue;
                     }
 
-                    
+                    // Cek apakah sudah pernah di-assign ke project ini
                     $existing = KaryawanProject::where('karyawan_id', $karyawanId)
                                                ->where('project_id', $request->project_id)
                                                ->first();
@@ -211,12 +211,12 @@ public function getByProject($projectId, Request $request)
                             $errors[] = "Karyawan {$karyawan->nama} ({$karyawan->nik}) sudah aktif di project ini";
                             continue;
                         } else {
-                            
+                            // Reaktivasi
                             $existing->aktifkanKembali();
                             $successCount++;
                         }
                     } else {
-                        
+                        // Create new assignment
                         KaryawanProject::create([
                             'karyawan_id' => $karyawanId,
                             'project_id' => $request->project_id,
@@ -256,7 +256,7 @@ public function getByProject($projectId, Request $request)
         }
     }
 
-    
+    // Nonaktifkan karyawan dari project
     public function deactivate(Request $request, KaryawanProject $karyawanProject)
     {
         $request->validate([
@@ -284,7 +284,7 @@ public function getByProject($projectId, Request $request)
         }
     }
 
-    
+    // Aktifkan kembali karyawan di project
     public function reactivate(KaryawanProject $karyawanProject)
     {
         try {
@@ -304,7 +304,7 @@ public function getByProject($projectId, Request $request)
         }
     }
 
-    
+    // Get available karyawan (belum aktif di project manapun)
     public function getAvailableKaryawan(Request $request)
     {
         $activeKaryawanIds = KaryawanProject::aktif()->pluck('karyawan_id');
@@ -313,7 +313,7 @@ public function getByProject($projectId, Request $request)
                              ->where('status', 'aktif')
                              ->whereNotIn('id', $activeKaryawanIds);
 
-        
+        // Search
         if ($request->has('search')) {
             $search = $request->search;
             $karyawans->where(function($q) use ($search) {
@@ -322,12 +322,12 @@ public function getByProject($projectId, Request $request)
             });
         }
 
-        
+        // Filter by division
         if ($request->has('divisi_id') && $request->divisi_id !== 'all') {
             $karyawans->where('divisi_id', $request->divisi_id);
         }
 
-        
+        // Filter by position
         if ($request->has('jabatan_id') && $request->jabatan_id !== 'all') {
             $karyawans->where('jabatan_id', $request->jabatan_id);
         }
@@ -347,7 +347,7 @@ public function getByProject($projectId, Request $request)
         ]);
     }
 
-    
+    // Show single assignment
     public function show(KaryawanProject $karyawanProject)
     {
         return response()->json([
@@ -356,7 +356,7 @@ public function getByProject($projectId, Request $request)
         ]);
     }
 
-    
+    // Delete assignment (hard delete - hati-hati!)
     public function destroy(KaryawanProject $karyawanProject)
     {
         try {
@@ -375,7 +375,7 @@ public function getByProject($projectId, Request $request)
         }
     }
 
-    
+    // Export assignments by project
     public function export($projectId)
     {
         try {
@@ -398,7 +398,7 @@ public function getByProject($projectId, Request $request)
             );
 
         } catch (\Exception $e) {
-            
+            // \Log::error('Export error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -407,7 +407,7 @@ public function getByProject($projectId, Request $request)
         }
     }
 
-    
+    // Import karyawan to project
     public function import(Request $request, $projectId)
     {
         $request->validate([

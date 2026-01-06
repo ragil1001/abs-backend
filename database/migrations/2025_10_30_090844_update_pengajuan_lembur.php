@@ -11,16 +11,16 @@ return new class extends Migration
         Schema::table('pengajuan_lemburs', function (Blueprint $table) {
             // Tambah kolom untuk lembur di hari libur
             $table->enum('kode_hari', ['K', 'L'])->after('tanggal')
-                  ->comment('K = Hari Kerja, L = Hari Libur');
-            
-            $table->time('jam_mulai')->nullable()->after('kode_hari')
-                  ->comment('Jam mulai lembur (wajib untuk hari libur)');
-            
-            $table->time('jam_selesai')->nullable()->after('jam_mulai')
-                  ->comment('Jam selesai lembur (wajib untuk hari libur)');
-            
+                ->comment('K = Hari Kerja, L = Hari Libur');
+
+            $table->time('jam_mulai')->after('kode_hari')
+                ->comment('Jam mulai lembur');
+
+            $table->time('jam_selesai')->after('jam_mulai')
+                ->comment('Jam selesai lembur');
+
             $table->text('keterangan_karyawan')->nullable()->after('file_skl')
-                  ->comment('Keterangan dari karyawan (opsional)');
+                ->comment('Keterangan dari karyawan (opsional)');
         });
     }
 
@@ -29,7 +29,7 @@ return new class extends Migration
         Schema::table('pengajuan_lemburs', function (Blueprint $table) {
             $table->dropColumn([
                 'kode_hari',
-                'jam_mulai', 
+                'jam_mulai',
                 'jam_selesai',
                 'keterangan_karyawan'
             ]);
