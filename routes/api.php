@@ -240,5 +240,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Hapus pengajuan (untuk admin)
         Route::delete('/{pengajuanId}', [PengajuanLemburController::class, 'hapusPengajuan']);
+        
+        Route::post('/download-files', [PengajuanLemburController::class, 'downloadFiles']);
     });
 });

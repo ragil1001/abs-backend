@@ -21,10 +21,10 @@ class KaryawanController extends Controller
     public function index(Request $request)
     {
         try {
-            
+            // Base query
             $karyawans = Karyawan::select([
                 'karyawans.id',
-                'karyawans.nik', 
+                'karyawans.nik',
                 'karyawans.nama',
                 'karyawans.no_telepon',
                 'karyawans.divisi_id',
@@ -38,67 +38,71 @@ class KaryawanController extends Controller
                 'karyawans.status',
                 'karyawans.username'
             ])
-            ->with([
-                'divisi:id,nama', 
-                'jabatan:id,nama',
-                
-                'activeProject.project:id,nama'
-            ]);
+                ->with([
+                    'divisi:id,nama',
+                    'jabatan:id,nama',
+                    'activeProject.project:id,nama'
+                ]);
 
-            
+            // FIXED: Search filter with proper case-insensitive matching
             if ($request->filled('search')) {
-                $search = $request->search;
-                $karyawans->where(function($q) use ($search) {
-                    $q->where('nama', 'ILIKE', '%' . $search . '%')
-                      ->orWhere('nik', 'LIKE', $search . '%')
-                      ->orWhere('id', 'LIKE', $search . '%');
+                $search = trim($request->search);
+
+                $karyawans->where(function ($q) use ($search) {
+                    // Search by nama (case-insensitive)
+                    $q->whereRaw('LOWER(nama) LIKE ?', ['%' . strtolower($search) . '%'])
+                        // Search by NIK (exact or starts with)
+                        ->orWhere('nik', 'LIKE', $search . '%')
+                        // Search by ID (exact match)
+                        ->orWhere('id', '=', $search);
                 });
             }
 
-            
+            // Status filter
             if ($request->filled('status') && $request->status !== 'all') {
                 $karyawans->where('status', $request->status);
             }
 
-            
+            // Project filter
             if ($request->filled('project_id') && $request->project_id !== 'all') {
                 if ($request->project_id === 'unassigned') {
-                    
+                    // Karyawan belum ada project
                     $karyawans->whereDoesntHave('activeProject');
                 } else {
-                    
-                    $karyawans->whereHas('activeProject', function($q) use ($request) {
+                    // Karyawan di project tertentu
+                    $karyawans->whereHas('activeProject', function ($q) use ($request) {
                         $q->where('project_id', $request->project_id);
                     });
                 }
             }
 
+            // Jabatan filter
             if ($request->filled('jabatan_id') && $request->jabatan_id !== 'all') {
                 $karyawans->where('jabatan_id', $request->jabatan_id);
             }
 
+            // Jenis kelamin filter
             if ($request->filled('jenis_kelamin') && $request->jenis_kelamin !== 'all') {
                 $karyawans->where('jenis_kelamin', $request->jenis_kelamin);
             }
 
-            
+            // Sorting
             $sortField = $request->input('sort_field', 'id');
             $sortDirection = $request->input('sort_direction', 'asc');
-            
+
             if ($sortField === 'divisi') {
                 $karyawans->leftJoin('divisis', 'karyawans.divisi_id', '=', 'divisis.id')
-                         ->orderBy('divisis.nama', $sortDirection)
-                         ->select('karyawans.*');
+                    ->orderBy('divisis.nama', $sortDirection)
+                    ->select('karyawans.*');
             } elseif ($sortField === 'jabatan') {
                 $karyawans->join('jabatans', 'karyawans.jabatan_id', '=', 'jabatans.id')
-                         ->orderBy('jabatans.nama', $sortDirection)
-                         ->select('karyawans.*');
+                    ->orderBy('jabatans.nama', $sortDirection)
+                    ->select('karyawans.*');
             } elseif ($sortField === 'project') {
-                
-                $karyawans->leftJoin('karyawan_projects as kp', function($join) {
-                        $join->on('karyawans.id', '=', 'kp.karyawan_id')
-                             ->where('kp.status', '=', 'aktif');
-                    })
+                $karyawans->leftJoin('karyawan_projects as kp', function ($join) {
+                    $join->on('karyawans.id', '=', 'kp.karyawan_id')
+                        ->where('kp.status', '=', 'aktif');
+                })
                     ->leftJoin('projects', 'kp.project_id', '=', 'projects.id')
                     ->orderBy('projects.nama', $sortDirection)
                     ->select('karyawans.*');
@@ -106,7 +110,7 @@ class KaryawanController extends Controller
                 $karyawans->orderBy('karyawans.' . $sortField, $sortDirection);
             }
 
-            
+            // Pagination
             $perPage = min((int)$request->input('per_page', 10), 100);
             $result = $karyawans->paginate($perPage);
 
@@ -120,10 +124,9 @@ class KaryawanController extends Controller
                     'last_page' => $result->lastPage(),
                 ],
             ]);
-
         } catch (\Exception $e) {
-            
-            
+            Log::error('Karyawan index error: ' . $e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memuat data karyawan'
@@ -137,7 +140,7 @@ class KaryawanController extends Controller
             'nik' => 'required|string|max:20|unique:karyawans,nik',
             'no_telepon' => 'required|string|max:15',
             'nama' => 'required|string|max:255',
-            'divisi_id' => 'nullable|exists:divisis,id', 
+            'divisi_id' => 'nullable|exists:divisis,id', // âœ… CHANGED: nullable
             'jabatan_id' => 'required|exists:jabatans,id',
             'jenis_kelamin' => 'required|in:L,P',
             'tempat_lahir' => 'required|string|max:255',
@@ -151,7 +154,7 @@ class KaryawanController extends Controller
             'nik.unique' => 'NIK sudah terdaftar',
             'nama.required' => 'Nama wajib diisi',
             'no_telepon.required' => 'Nomor telepon wajib diisi',
-            'divisi_id.exists' => 'Divisi tidak valid', 
+            'divisi_id.exists' => 'Divisi tidak valid', // âœ… UPDATED: removed required message
             'jabatan_id.required' => 'Jabatan wajib dipilih',
             'jabatan_id.exists' => 'Jabatan tidak valid',
             'jenis_kelamin.required' => 'Jenis kelamin wajib dipilih',
@@ -188,7 +191,7 @@ class KaryawanController extends Controller
             $karyawan->nik = $request->nik;
             $karyawan->nama = $request->nama;
             $karyawan->no_telepon = $request->no_telepon;
-            $karyawan->divisi_id = $request->divisi_id; 
+            $karyawan->divisi_id = $request->divisi_id; // âœ… Can be null now
             $karyawan->jabatan_id = $request->jabatan_id;
             $karyawan->jenis_kelamin = $request->jenis_kelamin;
             $karyawan->tempat_lahir = $request->tempat_lahir;
@@ -233,7 +236,7 @@ class KaryawanController extends Controller
             'nik' => 'required|string|max:20|unique:karyawans,nik,' . $karyawan->id,
             'nama' => 'required|string|max:255',
             'no_telepon' => 'required|string|max:15',
-            'divisi_id' => 'nullable|exists:divisis,id', 
+            'divisi_id' => 'nullable|exists:divisis,id', // âœ… CHANGED: nullable
             'jabatan_id' => 'required|exists:jabatans,id',
             'jenis_kelamin' => 'required|in:L,P',
             'tempat_lahir' => 'required|string|max:255',
@@ -264,7 +267,7 @@ class KaryawanController extends Controller
                 'nik' => $request->nik,
                 'nama' => $request->nama,
                 'no_telepon' => $request->no_telepon,
-                'divisi_id' => $request->divisi_id, 
+                'divisi_id' => $request->divisi_id, // âœ… Can be null now
                 'jabatan_id' => $request->jabatan_id,
                 'jenis_kelamin' => $request->jenis_kelamin,
                 'tempat_lahir' => $request->tempat_lahir,
@@ -309,10 +312,10 @@ class KaryawanController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            
-            
-            
-            
+            // Log::error('Update karyawan error:', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             
             return response()->json([
                 'success' => false,
@@ -324,7 +327,7 @@ class KaryawanController extends Controller
     public function resetPassword(Karyawan $karyawan)
     {
         try {
-            
+            // Generate password from tanggal_lahir (ddmmyyyy)
             $tanggalLahir = Carbon::parse($karyawan->tanggal_lahir);
             $defaultPassword = $tanggalLahir->format('dmY');
             
@@ -346,11 +349,11 @@ class KaryawanController extends Controller
         }
     }
 
-    
+    // Soft delete - mengubah status menjadi tidak aktif
     public function destroy(Karyawan $karyawan)
     {
         try {
-            
+            // Soft delete dengan mengubah status dan menambah tanggal keluar
             $karyawan->update([
                 'status' => 'tidak_aktif',
                 'tanggal_keluar' => now()->format('Y-m-d')
@@ -373,7 +376,7 @@ class KaryawanController extends Controller
     public function export()
     {
         try {
-            
+            // Check if there's data to export
             $count = Karyawan::count();
             if ($count === 0) {
                 return response()->json([
@@ -390,7 +393,7 @@ class KaryawanController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            
+            // Log::error('Export error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -399,7 +402,9 @@ class KaryawanController extends Controller
         }
     }
 
-    
+    /**
+     * Validate import file before processing (preview)
+     */
     public function validateImport(Request $request)
     {
         $request->validate([
@@ -409,10 +414,10 @@ class KaryawanController extends Controller
         try {
             $file = $request->file('file');
             
-            
+            // Read only first 1000 rows for validation
             $rows = Excel::toCollection(null, $file)->first();
             
-            
+            // Validate structure and master data
             $validation = \App\Imports\KaryawanImport::validateMasterData($rows);
 
             if (!$validation['valid']) {
@@ -422,7 +427,7 @@ class KaryawanController extends Controller
                 ], 422);
             }
 
-            
+            // Check if missing projects exist
             $missingProjects = $validation['master_data']['project']['missing'];
             
             if (!empty($missingProjects)) {
@@ -443,7 +448,7 @@ class KaryawanController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            
+            // Log::error('Validation failed: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -452,11 +457,13 @@ class KaryawanController extends Controller
         }
     }
 
-    
+    /**
+     * Import karyawan with queue job for large files
+     */
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls|max:40000', 
+            'file' => 'required|mimes:xlsx,xls|max:40000', // Max 10MB
         ], [
             'file.required' => 'File wajib dipilih',
             'file.mimes' => 'File harus berformat Excel (.xlsx atau .xls)',
@@ -464,25 +471,25 @@ class KaryawanController extends Controller
         ]);
 
         try {
-            
+            // Store file temporarily
             $file = $request->file('file');
             $fileName = 'imports/' . uniqid('karyawan_import_') . '.' . $file->getClientOriginalExtension();
             $filePath = $file->storeAs('imports', $fileName);
 
-            
-            
-            
-            
-            
-            
+            // Log::info('Import file uploaded', [
+            //     'file_name' => $file->getClientOriginalName(),
+            //     'file_path' => $filePath,
+            //     'file_size' => $file->getSize(),
+            //     'user_id' => auth()->id()
+            // ]);
 
-            
+            // Dispatch job
             $job = new \App\Jobs\ImportKaryawanJob($filePath, auth()->id());
             dispatch($job);
 
             $importId = $job->getImportId();
 
-            
+            // Store import ID for tracking
             Cache::put("import_job_{$importId}", [
                 'status' => 'queued',
                 'message' => 'Import sedang diproses...',
@@ -494,14 +501,14 @@ class KaryawanController extends Controller
                 'message' => 'Import sedang diproses di background. Anda akan menerima notifikasi saat selesai.',
                 'import_id' => $importId,
                 'type' => 'queued'
-            ], 202); 
+            ], 202); // 202 Accepted
 
         } catch (\Exception $e) {
-            
-            
-            
-            
-            
+            // Log::error('Import upload failed', [
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString(),
+            //     'user_id' => auth()->id()
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -511,7 +518,9 @@ class KaryawanController extends Controller
         }
     }
 
-    
+    /**
+     * Check import progress/status
+     */
     public function checkImportStatus(Request $request)
     {
         $request->validate([
@@ -520,7 +529,7 @@ class KaryawanController extends Controller
 
         $importId = $request->import_id;
 
-        
+        // Check status in cache
         $status = Cache::get("import_status_{$importId}");
 
         if (!$status) {
@@ -536,7 +545,9 @@ class KaryawanController extends Controller
         ]);
     }
 
-    
+    /**
+     * Get import progress (for real-time updates)
+     */
     public function getImportProgress(Request $request)
     {
         $request->validate([
@@ -545,11 +556,11 @@ class KaryawanController extends Controller
 
         $importId = $request->import_id;
 
-        
+        // Get progress from cache
         $progress = Cache::get("import_progress_{$importId}");
 
         if (!$progress) {
-            
+            // Check if import is completed or failed
             $status = Cache::get("import_status_{$importId}");
             
             if ($status) {
@@ -578,7 +589,7 @@ class KaryawanController extends Controller
 
     private function generateUsername($nik)
     {
-        
+        // Convert name to username format
         $username = $nik;
         
         return $username;

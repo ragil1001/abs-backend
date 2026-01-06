@@ -22,7 +22,7 @@ class PresensiObserver
                     Log::info("Foto presensi dihapus: {$presensi->foto}");
                 }
             } catch (\Exception $e) {
-                throw $e;
+                Log::error("Error deleting foto presensi: " . $e->getMessage());
             }
         }
     }
@@ -40,7 +40,7 @@ class PresensiObserver
                     Log::info("Foto presensi force deleted: {$presensi->foto}");
                 }
             } catch (\Exception $e) {
-                throw $e;
+                Log::error("Error force deleting foto presensi: " . $e->getMessage());
             }
         }
     }

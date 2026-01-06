@@ -30,7 +30,10 @@ class PengajuanIzinObserver
             //     'id' => $pengajuanIzin->id
             // ]);
         } catch (\Exception $e) {
-            throw $e;
+            Log::error('Failed to send notification on PengajuanIzin created', [
+                'error' => $e->getMessage(),
+                'id' => $pengajuanIzin->id
+            ]);
         }
     }
 
@@ -63,7 +66,10 @@ class PengajuanIzinObserver
                 }
             }
         } catch (\Exception $e) {
-            throw $e;
+            Log::error('Failed to send notification on PengajuanIzin updated', [
+                'error' => $e->getMessage(),
+                'id' => $pengajuanIzin->id
+            ]);
         }
     }
 
@@ -79,7 +85,7 @@ class PengajuanIzinObserver
                     Log::info("File dokumen izin dihapus: {$pengajuanIzin->file_dokumen}");
                 }
             } catch (\Exception $e) {
-                throw $e;
+                Log::error("Error deleting file dokumen izin: " . $e->getMessage());
             }
         }
     }
@@ -96,7 +102,7 @@ class PengajuanIzinObserver
                     Log::info("File dokumen izin force deleted: {$pengajuanIzin->file_dokumen}");
                 }
             } catch (\Exception $e) {
-                throw $e;
+                Log::error("Error force deleting file dokumen izin: " . $e->getMessage());
             }
         }
     }

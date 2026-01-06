@@ -14,17 +14,20 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    
+    /**
+     * Get ALL dashboard data in ONE request
+     * WITHOUT CACHING - Always fresh data
+     */
     public function getDashboardData(Request $request)
     {
         try {
             $today = Carbon::today()->format('Y-m-d');
             
-            
+            // Get filters
             $selectedProject = $request->input('project_id', 'all');
             $selectedShift = $request->input('shift_code', 'semua');
             
-            
+            // Always fetch fresh data (no cache)
             $data = [
                 'employee_stats' => $this->getEmployeeStats(),
                 'attendance_stats' => $this->getAttendanceStats($today, $selectedProject, $selectedShift),
@@ -36,11 +39,11 @@ class DashboardController extends Controller
                 'success' => true,
                 'data' => $data,
                 'timestamp' => now()->toDateTimeString(),
-                'cached' => false 
+                'cached' => false // Indicate this is fresh data
             ]);
             
         } catch (\Exception $e) {
-            
+            // Log::error('Dashboard data error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -49,10 +52,12 @@ class DashboardController extends Controller
         }
     }
     
-    
+    /**
+     * Get employee statistics - OPTIMIZED
+     */
     private function getEmployeeStats()
     {
-        
+        // Single query dengan grouping
         $stats = Karyawan::where('status', 'aktif')
             ->select('jenis_kelamin', DB::raw('count(*) as count'))
             ->groupBy('jenis_kelamin')
@@ -79,7 +84,9 @@ class DashboardController extends Controller
         ];
     }
     
-    
+    /**
+     * Get attendance statistics - OPTIMIZED with LIBUR, SAKIT, and CUTI status
+     */
     private function getAttendanceStats($tanggal, $projectId, $shiftCode)
     {
         if ($projectId === 'all') {
@@ -89,7 +96,9 @@ class DashboardController extends Controller
         return $this->getProjectAttendance($tanggal, $projectId, $shiftCode);
     }
     
-    
+    /**
+     * Aggregated attendance from all projects
+     */
     private function getAggregatedAttendance($tanggal)
     {
         $projects = Project::where('status', 'aktif')->pluck('id');
@@ -98,7 +107,7 @@ class DashboardController extends Controller
             return $this->getEmptyAttendanceStats();
         }
         
-        
+        // Get all jadwal for today from all projects
         $jadwalIds = JadwalKaryawan::whereHas('karyawanProject.project', function($q) use ($projects) {
                 $q->whereIn('id', $projects);
             })
@@ -109,7 +118,7 @@ class DashboardController extends Controller
             return $this->getEmptyAttendanceStats();
         }
         
-        
+        // Count by status with single query
         $stats = $this->calculateAttendanceFromJadwal($jadwalIds, $tanggal);
         
         return [
@@ -128,7 +137,9 @@ class DashboardController extends Controller
         ];
     }
     
-    
+    /**
+     * Single project attendance with shift filter
+     */
     private function getProjectAttendance($tanggal, $projectId, $shiftCode)
     {
         $project = Project::with('shiftProjects')->find($projectId);
@@ -137,7 +148,7 @@ class DashboardController extends Controller
             return $this->getEmptyAttendanceStats();
         }
         
-        
+        // Get jadwal with optional shift filter
         $query = JadwalKaryawan::whereHas('karyawanProject', function($q) use ($projectId) {
                 $q->where('project_id', $projectId);
             })
@@ -155,7 +166,7 @@ class DashboardController extends Controller
         
         $stats = $this->calculateAttendanceFromJadwal($jadwalIds, $tanggal);
         
-        
+        // Build shifts dropdown
         $shifts = [['id' => 'semua', 'name' => 'Semua Shift']];
         foreach ($project->shiftProjects as $shift) {
             $shifts[] = [
@@ -178,15 +189,18 @@ class DashboardController extends Controller
         ];
     }
     
-    
+    /**
+     * Calculate attendance statistics from jadwal IDs - OPTIMIZED (PostgreSQL Compatible)
+     * WITH SAKIT AND CUTI SEPARATION
+     */
     private function calculateAttendanceFromJadwal($jadwalIds, $tanggal)
     {
-        
+        // Get all jadwal with shift_code
         $jadwals = JadwalKaryawan::whereIn('id', $jadwalIds)
             ->select('id', 'shift_code')
             ->get();
         
-        
+        // Count libur (case-insensitive for PostgreSQL)
         $libur = $jadwals->filter(function($jadwal) {
             return strtoupper($jadwal->shift_code) === 'L';
         })->count();
@@ -207,8 +221,8 @@ class DashboardController extends Controller
             ];
         }
         
-        
-        
+        // Single query with conditional counting (PostgreSQL compatible)
+        // CRITICAL: Separate izin by kategori_izin
         $presensiStats = Presensi::whereIn('jadwal_karyawan_id', $workingJadwalIds->toArray())
             ->where('tipe', 'masuk')
             ->select(
@@ -228,7 +242,7 @@ class DashboardController extends Controller
                         ($presensiStats->cuti ?? 0) + 
                         ($presensiStats->alpa ?? 0);
         
-        
+        // Alpa = working jadwal yang tidak ada presensi
         $alpa = $workingJadwalIds->count() - $totalPresensi + ($presensiStats->alpa ?? 0);
         
         return [
@@ -242,10 +256,12 @@ class DashboardController extends Controller
         ];
     }
     
-    
+    /**
+     * Get recent submissions - OPTIMIZED (PostgreSQL Compatible)
+     */
     private function getRecentSubmissions()
     {
-        
+        // Get latest 4 submissions with eager loading
         $submissions = PengajuanIzin::with([
                 'jadwalKaryawan.karyawanProject.karyawan:id,nik,nama',
                 'jadwalKaryawan.karyawanProject.project:id,nama'
@@ -267,7 +283,7 @@ class DashboardController extends Controller
         return $submissions->map(function($sub) {
             $karyawan = $sub->jadwalKaryawan->karyawanProject->karyawan;
             
-            
+            // Calculate durasi_hari
             $start = \Carbon\Carbon::parse($sub->tanggal_mulai);
             $end = \Carbon\Carbon::parse($sub->tanggal_selesai);
             $durasiHari = $start->diffInDays($end) + 1;
@@ -288,7 +304,9 @@ class DashboardController extends Controller
         });
     }
     
-    
+    /**
+     * Get active projects - OPTIMIZED
+     */
     private function getActiveProjects()
     {
         return Project::where('status', 'aktif')
@@ -297,7 +315,9 @@ class DashboardController extends Controller
             ->get();
     }
     
-    
+    /**
+     * Empty stats structure
+     */
     private function getEmptyAttendanceStats()
     {
         return [

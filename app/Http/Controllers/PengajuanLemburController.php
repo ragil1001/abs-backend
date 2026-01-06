@@ -410,19 +410,19 @@ class PengajuanLemburController extends Controller
         $request->validate([
             'tanggal' => 'required|date',
             'file_skl' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'jam_mulai' => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'jam_mulai' => 'date_format:H:i',
+            'jam_selesai' => 'date_format:H:i|after:jam_mulai',
             'keterangan_karyawan' => 'nullable|string|max:500'
         ], [
             'tanggal.required' => 'Tanggal lembur wajib diisi',
             'file_skl.required' => 'File SKL wajib diupload',
             'file_skl.mimes' => 'Format file harus PDF, JPG, JPEG, atau PNG',
             'file_skl.max' => 'Ukuran file maksimal 10MB',
-            'jam_mulai.required' => 'Jam mulai wajib diisi',
-            'jam_mulai.date_format' => 'Format jam mulai tidak valid (HH:mm)',
-            'jam_selesai.required' => 'Jam selesai wajib diisi',
-            'jam_selesai.date_format' => 'Format jam selesai tidak valid (HH:mm)',
-            'jam_selesai.after' => 'Jam selesai harus setelah jam mulai'
+            // 'jam_mulai.required' => 'Jam mulai wajib diisi',
+            // 'jam_mulai.date_format' => 'Format jam mulai tidak valid (HH:mm)',
+            // 'jam_selesai.required' => 'Jam selesai wajib diisi',
+            // 'jam_selesai.date_format' => 'Format jam selesai tidak valid (HH:mm)',
+            // 'jam_selesai.after' => 'Jam selesai harus setelah jam mulai'
         ]);
 
         DB::beginTransaction();
@@ -597,4 +597,79 @@ class PengajuanLemburController extends Controller
             ], 500);
         }
     }
+    
+    public function downloadFiles(Request $request)
+{
+    $request->validate([
+        'pengajuan_ids' => 'required|array',
+        'pengajuan_ids.*' => 'integer|exists:pengajuan_lemburs,id'
+    ]);
+
+    try {
+        $pengajuans = PengajuanLembur::with('jadwalKaryawan.karyawanProject.karyawan')
+            ->whereIn('id', $request->pengajuan_ids)
+            ->get();
+
+        $filesData = [];
+        
+        foreach ($pengajuans as $pengajuan) {
+            // Cek apakah ada file_skl
+            if (!$pengajuan->file_skl) {
+                Log::warning("No file_skl for pengajuan ID: {$pengajuan->id}");
+                continue;
+            }
+
+            // PERBAIKAN: Langsung gunakan path relatif tanpa 'public/' prefix
+            // karena Storage::disk('public') sudah mengarah ke storage/app/public
+            $filePath = $pengajuan->file_skl;
+            
+            // Cek apakah file exists di storage public disk
+            if (!Storage::disk('public')->exists($filePath)) {
+                Log::warning("File not found: {$filePath} for pengajuan ID: {$pengajuan->id}");
+                continue;
+            }
+
+            try {
+                $karyawan = $pengajuan->jadwalKaryawan->karyawanProject->karyawan;
+                $extension = pathinfo($pengajuan->file_skl, PATHINFO_EXTENSION);
+                
+                // Ambil konten file dari storage public disk
+                $fileContent = Storage::disk('public')->get($filePath);
+                
+                $filesData[] = [
+                    'content' => base64_encode($fileContent),
+                    'filename' => "SKL_{$karyawan->nama}_{$karyawan->nik}_{$pengajuan->tanggal->format('Y-m-d')}.{$extension}",
+                    'mime_type' => Storage::disk('public')->mimeType($filePath),
+                    'size' => Storage::disk('public')->size($filePath)
+                ];
+                
+                Log::info("Successfully processed file for pengajuan ID: {$pengajuan->id}, path: {$filePath}");
+            } catch (\Exception $fileError) {
+                Log::error("Error processing file for pengajuan ID {$pengajuan->id}: " . $fileError->getMessage());
+                continue;
+            }
+        }
+
+        if (empty($filesData)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada file SKL yang dapat didownload. File mungkin sudah dihapus atau tidak tersedia.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $filesData,
+            'count' => count($filesData)
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Download files error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal mengambil file: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

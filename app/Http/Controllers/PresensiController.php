@@ -18,195 +18,172 @@ use Carbon\Carbon;
 
 class PresensiController extends Controller
 {
+    // private function getActiveJadwal($karyawanProjectId, $now)
+    // {
+    //     $today = $now->copy()->startOfDay();
+    //     $yesterday = $now->copy()->subDay()->startOfDay();
 
+    //     $jadwalToday = JadwalKaryawan::where('karyawan_project_id', $karyawanProjectId)
+    //         ->whereDate('tanggal', $today)
+    //         ->first();
 
-    public function cekPresensi(Request $request)
-    {
-        try {
-            $karyawan = $request->user();
-            $today = Carbon::today();
-            $now = Carbon::now();
+    //     $jadwalYesterday = JadwalKaryawan::where('karyawan_project_id', $karyawanProjectId)
+    //         ->whereDate('tanggal', $yesterday)
+    //         ->first();
 
-            $karyawanProject = $karyawan->activeProject;
+    //     if ($jadwalYesterday) {
+    //         $shiftCodeYesterday = strtoupper($jadwalYesterday->shift_code);
 
-            if (!$karyawanProject) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Anda belum terdaftar di project manapun',
-                    'error_type' => 'no_project'
-                ], 404);
-            }
+    //         $isLibur = ($shiftCodeYesterday === 'L');
 
-            $jadwal = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
-                ->whereDate('tanggal', $today)
-                ->first();
+    //         if ($isLibur) {
+    //             $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
+    //                 ->where('tipe', 'masuk')  // ✅ Filter berdasarkan tipe
+    //                 ->whereNotNull('waktu')   // ✅ Kolom yang benar
+    //                 ->orderBy('waktu', 'desc')
+    //                 ->first();
 
-            if (!$jadwal) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tidak ada jadwal untuk hari ini',
-                    'error_type' => 'no_schedule'
-                ], 404);
-            }
+    //             if ($presensiMasuk) {
+    //                 $waktuMasuk = Carbon::parse($presensiMasuk->waktu_masuk);
+    //                 $batasAktif = $waktuMasuk->copy()->addHours(10);
 
-            $project = $karyawanProject->project;
-            $isLibur = strtoupper($jadwal->shift_code) === 'L';
+    //                 if ($now->lessThan($batasAktif)) {
+    //                     return $jadwalYesterday;
+    //                 }
+    //             }
+    //         } else {
+    //             $project = $jadwalYesterday->karyawanProject->project;
+    //             $shiftYesterday = ShiftProject::where('project_id', $project->id)
+    //                 ->where('kode', $jadwalYesterday->shift_code)
+    //                 ->first();
 
+    //             if ($shiftYesterday) {
+    //                 $isShiftMalam = $this->isShiftMalam(
+    //                     $shiftYesterday->waktu_mulai,
+    //                     $shiftYesterday->waktu_selesai
+    //                 );
 
-            if ($isLibur) {
-                return $this->handlePresensiHariLibur($jadwal, $karyawan, $project, $now);
-            }
+    //                 if ($isShiftMalam) {
+    //                     $waktuSelesaiShift = Carbon::parse(
+    //                         $today->format('Y-m-d') . ' ' . $shiftYesterday->waktu_selesai
+    //                     );
 
+    //                     $batasAktif = $waktuSelesaiShift->copy()->addHours(4);
 
-            $shift = ShiftProject::where('project_id', $project->id)
-                ->where('kode', $jadwal->shift_code)
-                ->first();
+    //                     if ($now->lessThan($batasAktif)) {
+    //                         return $jadwalYesterday;
+    //                     }
+    //                 } else {
+    //                     $waktuSelesaiShift = Carbon::parse(
+    //                         $yesterday->format('Y-m-d') . ' ' . $shiftYesterday->waktu_selesai
+    //                     );
 
-            if (!$shift) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data shift tidak ditemukan',
-                    'error_type' => 'shift_not_found'
-                ], 404);
-            }
+    //                     $batasAktif = $waktuSelesaiShift->copy()->addHours(4);
 
-            $isJabatanExcluded = $project->isJabatanExcluded($karyawan->jabatan_id);
+    //                     if ($now->lessThan($batasAktif)) {
+    //                         return $jadwalYesterday;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
 
-            $waktuMulaiShift = Carbon::parse($today->format('Y-m-d') . ' ' . $shift->waktu_mulai);
-            $waktuSelesaiShift = Carbon::parse($today->format('Y-m-d') . ' ' . $shift->waktu_selesai);
+    //     if ($jadwalToday) {
+    //         return $jadwalToday;
+    //     }
 
-            $waktuToleransi = (int)($project->waktu_toleransi ?? 0);
-            $waktuBukaPresensiMasuk = $waktuMulaiShift->copy()->subMinutes($waktuToleransi);
-            $waktuTutupPresensiMasuk = $waktuSelesaiShift->copy();
+    //     return null;
+    // }
+    
+    private function getActiveJadwal($karyawanProjectId, $now)
+{
+    $today = $now->copy()->startOfDay();
+    $yesterday = $now->copy()->subDay()->startOfDay();
 
+    $jadwalToday = JadwalKaryawan::where('karyawan_project_id', $karyawanProjectId)
+        ->whereDate('tanggal', $today)
+        ->first();
 
+    $jadwalYesterday = JadwalKaryawan::where('karyawan_project_id', $karyawanProjectId)
+        ->whereDate('tanggal', $yesterday)
+        ->first();
 
+    if ($jadwalYesterday) {
+        $shiftCodeYesterday = strtoupper($jadwalYesterday->shift_code);
+        $isLibur = ($shiftCodeYesterday === 'L');
 
-
-
-
-
-
-
-
-
-            $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
+        if ($isLibur) {
+            // ✅ Cek apakah ada presensi masuk di hari libur kemarin
+            $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwalYesterday->id)
                 ->where('tipe', 'masuk')
+                ->whereNotNull('waktu')
+                ->where('status', '!=', 'libur') // Pastikan bukan status libur
+                ->orderBy('waktu', 'desc')
                 ->first();
 
-            $presensiPulang = Presensi::where('jadwal_karyawan_id', $jadwal->id)
-                ->where('tipe', 'pulang')
-                ->first();
+            if ($presensiMasuk) {
+                // ✅ Ada presensi masuk di hari libur kemarin
+                // Hitung apakah masih dalam 10 jam sejak presensi masuk
+                $tanggalMasuk = Carbon::parse($presensiMasuk->tanggal)->format('Y-m-d');
+                $waktuMasuk = Carbon::parse($tanggalMasuk . ' ' . $presensiMasuk->waktu);
+                $batasAktif = $waktuMasuk->copy()->addHours(10);
 
-            $bisaPresensiMasuk = false;
-            $bisaPresensiPulang = false;
-            $pesanWaktu = null;
-            $errorType = null;
-
-
-            if (!$presensiMasuk) {
-
-                if ($now->greaterThan($waktuTutupPresensiMasuk)) {
-                    $selisihMenit = (int)$now->diffInMinutes($waktuTutupPresensiMasuk);
-                    $pesanWaktu = "Shift sudah berakhir " . $this->formatMenit($selisihMenit) . " yang lalu. Anda tidak dapat melakukan presensi masuk.";
-                    $errorType = 'shift_ended';
-                } elseif ($now->lessThan($waktuBukaPresensiMasuk)) {
-                    $selisihMenit = (int)$now->diffInMinutes($waktuBukaPresensiMasuk);
-                    $pesanWaktu = "Presensi masuk akan dibuka pada " .
-                        $waktuBukaPresensiMasuk->format('H:i') .
-                        " (" . $this->formatMenit($selisihMenit) . " lagi)";
-                    $errorType = 'shift_not_started';
-                } else {
-                    $bisaPresensiMasuk = true;
-                    $pesanWaktu = "Anda dapat melakukan presensi masuk sekarang";
+                if ($now->lessThan($batasAktif)) {
+                    // Masih dalam 10 jam, gunakan jadwal kemarin
+                    return $jadwalYesterday;
                 }
-            } else {
-                if (in_array($presensiMasuk->status, ['alpa', 'izin', 'libur'])) {
-                    $pesanWaktu = "Anda tidak dapat melakukan presensi pulang (Status: {$presensiMasuk->status})";
-                    $errorType = 'status_blocked';
-                } elseif (!$presensiPulang) {
+            }
+            
+            // ✅ TIDAK ada presensi masuk di hari libur kemarin ATAU sudah lewat 10 jam
+            // Gunakan jadwal hari ini
+            if ($jadwalToday) {
+                return $jadwalToday;
+            }
+        } else {
+            // ✅ Shift kemarin bukan libur, gunakan logika shift malam seperti biasa
+            $project = $jadwalYesterday->karyawanProject->project;
+            $shiftYesterday = ShiftProject::where('project_id', $project->id)
+                ->where('kode', $jadwalYesterday->shift_code)
+                ->first();
 
-                    if ($now->lessThan($waktuMulaiShift)) {
-                        $selisihMenit = (int)$now->diffInMinutes($waktuMulaiShift);
-                        $bisaPresensiPulang = false;
-                        $pesanWaktu = "Shift belum dimulai. Presensi pulang dapat dilakukan mulai " .
-                            $waktuMulaiShift->format('H:i') .
-                            " (" . $this->formatMenit($selisihMenit) . " lagi)";
-                        $errorType = 'shift_not_started';
-                    } else {
-                        $bisaPresensiPulang = true;
-                        $pesanWaktu = "Anda dapat melakukan presensi pulang sekarang";
+            if ($shiftYesterday) {
+                $isShiftMalam = $this->isShiftMalam(
+                    $shiftYesterday->waktu_mulai,
+                    $shiftYesterday->waktu_selesai
+                );
+
+                if ($isShiftMalam) {
+                    $waktuSelesaiShift = Carbon::parse(
+                        $today->format('Y-m-d') . ' ' . $shiftYesterday->waktu_selesai
+                    );
+
+                    $batasAktif = $waktuSelesaiShift->copy()->addHours(4);
+
+                    if ($now->lessThan($batasAktif)) {
+                        return $jadwalYesterday;
                     }
                 } else {
-                    $pesanWaktu = "Anda sudah melakukan presensi masuk dan pulang hari ini";
-                    $errorType = 'already_completed';
+                    $waktuSelesaiShift = Carbon::parse(
+                        $yesterday->format('Y-m-d') . ' ' . $shiftYesterday->waktu_selesai
+                    );
+
+                    $batasAktif = $waktuSelesaiShift->copy()->addHours(4);
+
+                    if ($now->lessThan($batasAktif)) {
+                        return $jadwalYesterday;
+                    }
                 }
             }
-
-            $lokasiData = null;
-            if ($project->lokasi) {
-                $lokasi = is_string($project->lokasi) ? json_decode($project->lokasi, true) : $project->lokasi;
-                $lokasiData = [
-                    'nama' => $lokasi['nama'] ?? '',
-                    'latitude' => (float)($lokasi['latitude'] ?? 0),
-                    'longitude' => (float)($lokasi['longitude'] ?? 0),
-                ];
-            }
-
-            $enabledCategories = $project->getEnabledKategoriIzin();
-            $enabledSubCategories = $project->getEnabledSubKategoriIzin();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'jadwal_id' => $jadwal->id,
-                    'tanggal' => $today->format('Y-m-d'),
-                    'shift' => [
-                        'kode' => $shift->kode,
-                        'waktu_mulai' => $shift->waktu_mulai,
-                        'waktu_selesai' => $shift->waktu_selesai
-                    ],
-                    'project' => [
-                        'id' => $project->id,
-                        'nama' => $project->nama,
-                        'bagian' => $project->bagian,
-                        'lokasi' => $lokasiData,
-                        'radius' => (int)$project->radius,
-                        'waktu_toleransi' => $waktuToleransi
-                    ],
-                    'karyawan' => [
-                        'jabatan_id' => $karyawan->jabatan_id,
-                        'jabatan_nama' => $karyawan->jabatan->nama ?? '-',
-                        'is_jabatan_excluded' => $isJabatanExcluded
-                    ],
-                    'waktu_info' => [
-                        'waktu_sekarang' => $now->format('H:i:s'),
-                        'waktu_buka_masuk' => $waktuBukaPresensiMasuk->format('H:i:s'),
-                        'waktu_mulai_shift' => $waktuMulaiShift->format('H:i:s'),
-                        'waktu_selesai_shift' => $waktuSelesaiShift->format('H:i:s'),
-                        'waktu_sekarang_full' => $now->format('Y-m-d H:i:s'),
-                        'pesan' => $pesanWaktu,
-                        'error_type' => $errorType
-                    ],
-                    'bisa_presensi_masuk' => $bisaPresensiMasuk,
-                    'bisa_presensi_pulang' => $bisaPresensiPulang,
-                    'sudah_presensi_masuk' => !is_null($presensiMasuk),
-                    'sudah_presensi_pulang' => !is_null($presensiPulang),
-                    'enabled_izin_categories' => $enabledCategories,
-                    'enabled_sub_kategori_izin' => $enabledSubCategories
-                ]
-            ]);
-        } catch (\Exception $e) {
-
-
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengecek presensi: ' . $e->getMessage(),
-                'error_type' => 'server_error'
-            ], 500);
         }
     }
+
+    // ✅ Default: return jadwal hari ini jika ada
+    if ($jadwalToday) {
+        return $jadwalToday;
+    }
+
+    return null;
+}
 
     private function handlePresensiHariLibur($jadwal, $karyawan, $project, $now)
     {
@@ -686,6 +663,192 @@ class PresensiController extends Controller
         ], 201);
     }
 
+    private function isShiftMalam($waktuMulai, $waktuSelesai)
+    {
+        $mulai = Carbon::parse($waktuMulai);
+        $selesai = Carbon::parse($waktuSelesai);
+        return $selesai->lessThan($mulai);
+    }
+
+    public function cekPresensi(Request $request)
+    {
+        try {
+            $karyawan = $request->user();
+            $now = Carbon::now();
+
+            $karyawanProject = $karyawan->activeProject;
+
+            if (!$karyawanProject) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda belum terdaftar di project manapun',
+                    'error_type' => 'no_project'
+                ], 404);
+            }
+
+            $jadwal = $this->getActiveJadwal($karyawanProject->id, $now);
+
+            if (!$jadwal) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada jadwal untuk saat ini',
+                    'error_type' => 'no_schedule'
+                ], 404);
+            }
+
+            $project = $karyawanProject->project;
+            $isLibur = strtoupper($jadwal->shift_code) === 'L';
+
+            if ($isLibur) {
+                return $this->handlePresensiHariLibur($jadwal, $karyawan, $project, $now);
+            }
+
+            $shift = ShiftProject::where('project_id', $project->id)
+                ->where('kode', $jadwal->shift_code)
+                ->first();
+
+            if (!$shift) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data shift tidak ditemukan',
+                    'error_type' => 'shift_not_found'
+                ], 404);
+            }
+
+            $isJabatanExcluded = $project->isJabatanExcluded($karyawan->jabatan_id);
+            $isShiftMalam = $this->isShiftMalam($shift->waktu_mulai, $shift->waktu_selesai);
+
+            $tanggalJadwal = Carbon::parse($jadwal->tanggal)->startOfDay();
+            $waktuMulaiShift = Carbon::parse($tanggalJadwal->format('Y-m-d') . ' ' . $shift->waktu_mulai);
+
+            if ($isShiftMalam) {
+                $waktuSelesaiShift = Carbon::parse($tanggalJadwal->copy()->addDay()->format('Y-m-d') . ' ' . $shift->waktu_selesai);
+            } else {
+                $waktuSelesaiShift = Carbon::parse($tanggalJadwal->format('Y-m-d') . ' ' . $shift->waktu_selesai);
+            }
+
+            $waktuToleransi = (int)($project->waktu_toleransi ?? 0);
+            $waktuBukaPresensiMasuk = $waktuMulaiShift->copy()->subMinutes($waktuToleransi);
+            $waktuTutupPresensiMasuk = $waktuSelesaiShift->copy();
+
+            $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
+                ->where('tipe', 'masuk')
+                ->first();
+
+            $presensiPulang = Presensi::where('jadwal_karyawan_id', $jadwal->id)
+                ->where('tipe', 'pulang')
+                ->first();
+
+            $bisaPresensiMasuk = false;
+            $bisaPresensiPulang = false;
+            $pesanWaktu = null;
+            $errorType = null;
+
+            if (!$presensiMasuk) {
+                if ($now->greaterThan($waktuTutupPresensiMasuk)) {
+                    $selisihMenit = (int)$now->diffInMinutes($waktuTutupPresensiMasuk);
+                    $pesanWaktu = "Shift sudah berakhir " . $this->formatMenit($selisihMenit) . " yang lalu. Anda tidak dapat melakukan presensi masuk.";
+                    $errorType = 'shift_ended';
+                } elseif ($now->lessThan($waktuBukaPresensiMasuk)) {
+                    $selisihMenit = (int)$now->diffInMinutes($waktuBukaPresensiMasuk);
+                    $pesanWaktu = "Presensi masuk akan dibuka pada " .
+                        $waktuBukaPresensiMasuk->format('H:i') .
+                        " (" . $this->formatMenit($selisihMenit) . " lagi)";
+                    $errorType = 'shift_not_started';
+                } else {
+                    $bisaPresensiMasuk = true;
+                    $pesanWaktu = "Anda dapat melakukan presensi masuk sekarang";
+                }
+            } else {
+                if (in_array($presensiMasuk->status, ['alpa', 'izin', 'libur'])) {
+                    $pesanWaktu = "Anda tidak dapat melakukan presensi pulang (Status: {$presensiMasuk->status})";
+                    $errorType = 'status_blocked';
+                } elseif (!$presensiPulang) {
+                    if ($now->lessThan($waktuMulaiShift)) {
+                        $selisihMenit = (int)$now->diffInMinutes($waktuMulaiShift);
+                        $bisaPresensiPulang = false;
+                        $pesanWaktu = "Shift belum dimulai. Presensi pulang dapat dilakukan mulai " .
+                            $waktuMulaiShift->format('H:i') .
+                            " (" . $this->formatMenit($selisihMenit) . " lagi)";
+                        $errorType = 'shift_not_started';
+                    } else {
+                        $bisaPresensiPulang = true;
+                        if ($isShiftMalam && $now->lessThan($waktuSelesaiShift)) {
+                            $pesanWaktu = "Anda dapat melakukan presensi pulang sekarang. Shift berakhir besok " .
+                                $waktuSelesaiShift->format('H:i');
+                        } else {
+                            $pesanWaktu = "Anda dapat melakukan presensi pulang sekarang";
+                        }
+                    }
+                } else {
+                    $pesanWaktu = "Anda sudah melakukan presensi masuk dan pulang untuk shift ini";
+                    $errorType = 'already_completed';
+                }
+            }
+
+            $lokasiData = null;
+            if ($project->lokasi) {
+                $lokasi = is_string($project->lokasi) ? json_decode($project->lokasi, true) : $project->lokasi;
+                $lokasiData = [
+                    'nama' => $lokasi['nama'] ?? '',
+                    'latitude' => (float)($lokasi['latitude'] ?? 0),
+                    'longitude' => (float)($lokasi['longitude'] ?? 0),
+                ];
+            }
+
+            $enabledCategories = $project->getEnabledKategoriIzin();
+            $enabledSubCategories = $project->getEnabledSubKategoriIzin();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'jadwal_id' => $jadwal->id,
+                    'tanggal' => $jadwal->tanggal,
+                    'is_shift_malam' => $isShiftMalam,
+                    'shift' => [
+                        'kode' => $shift->kode,
+                        'waktu_mulai' => $shift->waktu_mulai,
+                        'waktu_selesai' => $shift->waktu_selesai
+                    ],
+                    'project' => [
+                        'id' => $project->id,
+                        'nama' => $project->nama,
+                        'bagian' => $project->bagian,
+                        'lokasi' => $lokasiData,
+                        'radius' => (int)$project->radius,
+                        'waktu_toleransi' => $waktuToleransi
+                    ],
+                    'karyawan' => [
+                        'jabatan_id' => $karyawan->jabatan_id,
+                        'jabatan_nama' => $karyawan->jabatan->nama ?? '-',
+                        'is_jabatan_excluded' => $isJabatanExcluded
+                    ],
+                    'waktu_info' => [
+                        'waktu_sekarang' => $now->format('H:i:s'),
+                        'waktu_buka_masuk' => $waktuBukaPresensiMasuk->format('H:i:s'),
+                        'waktu_mulai_shift' => $waktuMulaiShift->format('H:i:s'),
+                        'waktu_selesai_shift' => $waktuSelesaiShift->format('Y-m-d H:i:s'),
+                        'waktu_sekarang_full' => $now->format('Y-m-d H:i:s'),
+                        'pesan' => $pesanWaktu,
+                        'error_type' => $errorType
+                    ],
+                    'bisa_presensi_masuk' => $bisaPresensiMasuk,
+                    'bisa_presensi_pulang' => $bisaPresensiPulang,
+                    'sudah_presensi_masuk' => !is_null($presensiMasuk),
+                    'sudah_presensi_pulang' => !is_null($presensiPulang),
+                    'enabled_izin_categories' => $enabledCategories,
+                    'enabled_sub_kategori_izin' => $enabledSubCategories
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in cekPresensi: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengecek presensi: ' . $e->getMessage(),
+                'error_type' => 'server_error'
+            ], 500);
+        }
+    }
 
     public function submitPresensi(Request $request)
     {
@@ -702,59 +865,35 @@ class PresensiController extends Controller
             $karyawan = $request->user();
             $jadwal = JadwalKaryawan::findOrFail($request->jadwal_id);
 
+            $now = Carbon::now();
+            $activeJadwal = $this->getActiveJadwal($jadwal->karyawan_project_id, $now);
 
-            $jadwalKaryawan = JadwalKaryawan::whereHas('karyawanProject', function ($q) use ($karyawan) {
-                $q->where('karyawan_id', $karyawan->id);
-            })
-                ->where('tanggal', $jadwal->tanggal)
-                ->where('shift_code', $jadwal->shift_code)
-                ->first();
-
-            if (!$jadwalKaryawan) {
+            if (!$activeJadwal || $activeJadwal->id !== $jadwal->id) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Anda tidak memiliki jadwal untuk shift ini pada tanggal tersebut'
+                    'message' => 'Jadwal tidak aktif atau sudah berakhir'
                 ], 403);
             }
 
-            $project = $jadwalKaryawan->karyawanProject->project;
-            $isLibur = strtoupper($jadwalKaryawan->shift_code) === 'L';
-
+            $project = $jadwal->karyawanProject->project;
+            $isLibur = strtoupper($jadwal->shift_code) === 'L';
 
             if ($isLibur) {
-                return $this->submitPresensiHariLibur($request, $jadwalKaryawan, $karyawan, $project);
+                return $this->submitPresensiHariLibur($request, $jadwal, $karyawan, $project);
             }
 
-
-            $existing = Presensi::whereHas('jadwalKaryawan', function ($q) use ($karyawan, $jadwal) {
-                $q->whereHas('karyawanProject', function ($q2) use ($karyawan) {
-                    $q2->where('karyawan_id', $karyawan->id);
-                })
-                    ->where('tanggal', $jadwal->tanggal)
-                    ->where('shift_code', $jadwal->shift_code);
-            })
+            $existing = Presensi::where('jadwal_karyawan_id', $jadwal->id)
                 ->where('tipe', $request->tipe)
                 ->first();
 
             if ($existing) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Anda sudah melakukan presensi ' . $request->tipe . ' untuk shift ini hari ini'
+                    'message' => 'Anda sudah melakukan presensi ' . $request->tipe . ' untuk shift ini'
                 ], 400);
             }
 
-            $project = $jadwalKaryawan->karyawanProject->project;
-
-
             $isJabatanExcluded = $project->isJabatanExcluded($karyawan->jabatan_id);
-
-
-
-
-
-
-
-
 
             $projectLocation = is_string($project->lokasi)
                 ? json_decode($project->lokasi, true)
@@ -770,14 +909,7 @@ class PresensiController extends Controller
                 $projectLon
             );
 
-
             if (!$isJabatanExcluded && $jarak > $project->radius) {
-
-
-
-
-
-
                 return response()->json([
                     'success' => false,
                     'message' => 'Anda berada di luar radius lokasi presensi. Jarak Anda: ' . round($jarak, 2) . ' meter',
@@ -789,22 +921,20 @@ class PresensiController extends Controller
                 ], 400);
             }
 
-
             $fotoPath = $this->uploadDanKompresFoto($request->file('foto'), $karyawan->id);
 
             $shift = ShiftProject::where('project_id', $project->id)
-                ->where('kode', $jadwalKaryawan->shift_code)
+                ->where('kode', $jadwal->shift_code)
                 ->first();
 
             $waktuSekarang = Carbon::now();
 
-            $tanggal = $jadwalKaryawan->tanggal instanceof Carbon
-                ? $jadwalKaryawan->tanggal
-                : Carbon::parse($jadwalKaryawan->tanggal);
+            $tanggal = Carbon::parse($jadwal->tanggal);
 
             $status = 'hadir';
             $keterangan = null;
 
+            $isShiftMalam = $this->isShiftMalam($shift->waktu_mulai, $shift->waktu_selesai);
 
             if ($request->tipe === 'masuk') {
                 $waktuMulaiShift = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $shift->waktu_mulai);
@@ -830,8 +960,13 @@ class PresensiController extends Controller
                     }
                 }
             } else {
+                // Presensi pulang
+                if ($isShiftMalam) {
+                    $waktuSelesaiShift = Carbon::parse($tanggal->copy()->addDay()->format('Y-m-d') . ' ' . $shift->waktu_selesai);
+                } else {
+                    $waktuSelesaiShift = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $shift->waktu_selesai);
+                }
 
-                $waktuSelesaiShift = Carbon::parse($tanggal->format('Y-m-d') . ' ' . $shift->waktu_selesai);
                 $batasToleransiPulangCepat = $waktuSelesaiShift->copy()->subMinutes(45);
                 $batasTepat = $waktuSelesaiShift->copy()->addMinutes(15);
 
@@ -853,9 +988,8 @@ class PresensiController extends Controller
                 }
             }
 
-
             $presensi = Presensi::create([
-                'jadwal_karyawan_id' => $jadwalKaryawan->id,
+                'jadwal_karyawan_id' => $jadwal->id,
                 'tanggal' => $tanggal->format('Y-m-d'),
                 'tipe' => $request->tipe,
                 'status' => $status,
@@ -868,15 +1002,6 @@ class PresensiController extends Controller
 
             DB::commit();
 
-
-
-
-
-
-
-
-
-
             return response()->json([
                 'success' => true,
                 'message' => 'Presensi ' . $request->tipe . ' berhasil dicatat',
@@ -886,11 +1011,13 @@ class PresensiController extends Controller
                     'status' => $presensi->status,
                     'status_text' => $this->getStatusText($presensi->status),
                     'waktu' => $presensi->waktu,
+                    'tanggal' => $presensi->tanggal,
                     'keterangan' => $presensi->keterangan,
                     'foto_url' => $presensi->foto ? Storage::url($presensi->foto) : null,
                     'is_jabatan_excluded' => $isJabatanExcluded,
                     'jarak' => round($jarak, 2),
-                    'jadwal_id' => $jadwalKaryawan->id
+                    'jadwal_id' => $jadwal->id,
+                    'is_shift_malam' => $isShiftMalam
                 ]
             ], 201);
         } catch (\Exception $e) {
@@ -900,11 +1027,7 @@ class PresensiController extends Controller
                 Storage::delete('public/' . $fotoPath);
             }
 
-
-
-
-
-
+            Log::error('Error in submitPresensi: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -912,9 +1035,6 @@ class PresensiController extends Controller
             ], 500);
         }
     }
-
-
-
 
 
 
@@ -1060,7 +1180,6 @@ class PresensiController extends Controller
             $startDate = $request->start_date;
             $endDate = $request->end_date;
 
-
             $jadwals = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
                 ->where('tanggal', '>=', $startDate)
                 ->where('tanggal', '<=', $endDate)
@@ -1074,7 +1193,6 @@ class PresensiController extends Controller
                 $tanggal = $jadwal->tanggal;
                 $shiftCode = $jadwal->shift_code;
 
-
                 $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwal->id)
                     ->where('tipe', 'masuk')
                     ->first();
@@ -1083,29 +1201,23 @@ class PresensiController extends Controller
                     ->where('tipe', 'pulang')
                     ->first();
 
-
                 $status = 'alpa';
                 $isClickable = false;
 
-
                 if (strtoupper($shiftCode) === 'L') {
-
                     if (
                         $presensiMasuk &&
                         $presensiMasuk->status !== 'libur' &&
                         $presensiMasuk->waktu !== null
                     ) {
-
                         $status = $presensiMasuk->status;
                         $isClickable = true;
                     } else {
-
                         $status = 'libur';
                         $isClickable = false;
                     }
                 } elseif ($presensiMasuk) {
                     $status = $presensiMasuk->status;
-
 
                     if (!in_array($presensiMasuk->status, ['alpa', 'izin', 'libur'])) {
                         $isClickable = true;
@@ -1117,11 +1229,9 @@ class PresensiController extends Controller
                     $isClickable = false;
                 }
 
-
                 $shift = ShiftProject::where('project_id', $project->id)
                     ->where('kode', $shiftCode)
                     ->first();
-
 
                 $result[] = [
                     'id' => $jadwal->id,
@@ -1192,19 +1302,12 @@ class PresensiController extends Controller
                 ];
             }
 
-
-
-
-
-
-
             return response()->json([
                 'success' => true,
                 'data' => $result
             ]);
         } catch (\Exception $e) {
-
-
+            Log::error('Error in getHistory: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -1538,9 +1641,14 @@ class PresensiController extends Controller
                 ], 404);
             }
 
-            $today = Carbon::today()->format('Y-m-d');
-
+            $now = Carbon::now();
             $project = $karyawanProject->project;
+
+            // Log::info('📱 getPresensiData dipanggil', [
+            //     'karyawan_id' => $karyawan->id,
+            //     'waktu_sekarang' => $now->format('Y-m-d H:i:s'),
+            // ]);
+
             $tanggalMulaiProject = $project->tanggal_mulai;
 
             if ($tanggalMulaiProject instanceof Carbon) {
@@ -1551,11 +1659,9 @@ class PresensiController extends Controller
                 $projectStartDate = Carbon::parse($tanggalMulaiProject)->format('Y-m-d');
             }
 
-
             $currentMonth = Carbon::now();
             $startOfMonth = $currentMonth->copy()->startOfMonth()->format('Y-m-d');
-            $endDate = $today;
-
+            $endDate = $now->format('Y-m-d');
 
             if ($projectStartDate > $startOfMonth) {
                 $startDate = $projectStartDate;
@@ -1563,19 +1669,16 @@ class PresensiController extends Controller
                 $startDate = $startOfMonth;
             }
 
-
-
-
-
-
-
-
-
             $statistik = $this->getStatistikMonthly($karyawanProject->id, $startDate, $endDate);
 
-            $jadwalHariIni = JadwalKaryawan::where('karyawan_project_id', $karyawanProject->id)
-                ->where('tanggal', $today)
-                ->first();
+            // ✅ CRITICAL FIX: Gunakan getActiveJadwal untuk mendapatkan jadwal yang benar
+            $jadwalHariIni = $this->getActiveJadwal($karyawanProject->id, $now);
+
+            // Log::info('📋 Jadwal aktif untuk homepage', [
+            //     'jadwal_id' => $jadwalHariIni ? $jadwalHariIni->id : null,
+            //     'tanggal_jadwal' => $jadwalHariIni ? $jadwalHariIni->tanggal : null,
+            //     'shift_code' => $jadwalHariIni ? $jadwalHariIni->shift_code : null,
+            // ]);
 
             $jadwalData = null;
             $presensiData = null;
@@ -1583,7 +1686,6 @@ class PresensiController extends Controller
 
             if ($jadwalHariIni) {
                 $shiftCodeUpper = strtoupper($jadwalHariIni->shift_code);
-
                 $isLibur = $shiftCodeUpper === 'L';
 
                 $presensiMasuk = Presensi::where('jadwal_karyawan_id', $jadwalHariIni->id)
@@ -1593,6 +1695,19 @@ class PresensiController extends Controller
                 $presensiPulang = Presensi::where('jadwal_karyawan_id', $jadwalHariIni->id)
                     ->where('tipe', 'pulang')
                     ->first();
+
+                // Log::info('✅ Presensi ditemukan', [
+                //     'presensi_masuk' => $presensiMasuk ? [
+                //         'id' => $presensiMasuk->id,
+                //         'waktu' => $presensiMasuk->waktu,
+                //         'status' => $presensiMasuk->status
+                //     ] : null,
+                //     'presensi_pulang' => $presensiPulang ? [
+                //         'id' => $presensiPulang->id,
+                //         'waktu' => $presensiPulang->waktu,
+                //         'status' => $presensiPulang->status
+                //     ] : null,
+                // ]);
 
                 $sudahPresensiDiLibur = $isLibur &&
                     $presensiMasuk &&
@@ -1661,6 +1776,12 @@ class PresensiController extends Controller
             $enabledCategories = $project->getEnabledKategoriIzin();
             $enabledSubCategories = $project->getEnabledSubKategoriIzin();
 
+            // Log::info('📤 Response getPresensiData', [
+            //     'jadwal_shift' => $jadwalData ? $jadwalData['shift_code'] : null,
+            //     'waktu_masuk' => $presensiData ? $presensiData['waktu_masuk'] : null,
+            //     'waktu_pulang' => $presensiData ? $presensiData['waktu_pulang'] : null,
+            // ]);
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -1683,8 +1804,8 @@ class PresensiController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-
-
+            Log::error('❌ Error in getPresensiData: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
 
             return response()->json([
                 'success' => false,
@@ -2517,7 +2638,8 @@ class PresensiController extends Controller
                     'sakit' => 0,
                     'cuti' => 0,
                     'alpa' => 0,
-                    'libur' => 0
+                    'libur' => 0,
+                    'lembur' => 0
                 ];
 
                 foreach ($jadwals as $jadwal) {
@@ -2533,21 +2655,27 @@ class PresensiController extends Controller
                         ->where('tipe', 'pulang')
                         ->first();
 
-                    $pengajuanLembur = null;
-                    if ($presensiPulang && in_array($presensiPulang->status, ['lembur', 'lembur_pending'])) {
-                        $pengajuanLembur = \App\Models\PengajuanLembur::where('jadwal_karyawan_id', $jadwal->id)
-                            ->whereIn('status', ['disetujui'])
-                            ->first();
+                    // PERBAIKAN: Ambil pengajuan lembur untuk SEMUA status, tidak hanya yang disetujui
+                    $pengajuanLembur = \App\Models\PengajuanLembur::where('jadwal_karyawan_id', $jadwal->id)
+                        ->first(); // Ambil semua status
+
+                    // Hitung statistik lembur (hanya yang disetujui)
+                    if ($pengajuanLembur && $pengajuanLembur->status === 'disetujui') {
+                        $statistik['lembur']++;
                     }
 
-                    // Hitung statistik
+                    // Hitung statistik presensi
                     if ($shiftCodeUpper === 'L') {
-                        if ($presensiMasuk && $presensiMasuk->status !== 'libur') {
+                        // Jika hari libur
+                        if ($presensiMasuk && $presensiMasuk->status !== 'libur' && $presensiMasuk->waktu !== null) {
+                            // Ada presensi masuk di hari libur
                             $statistik['hadir']++;
                         } else {
+                            // Tidak ada presensi atau status libur
                             $statistik['libur']++;
                         }
                     } else {
+                        // Jika hari kerja
                         if ($presensiMasuk) {
                             if ($presensiMasuk->status === 'hadir') {
                                 $statistik['hadir']++;
@@ -2565,12 +2693,9 @@ class PresensiController extends Controller
                                     $statistik['izin']++;
                                 }
                             }
-                        } else {
-                            $statistik['alpa']++;
                         }
                     }
 
-                    // Get shift info
                     $shift = null;
                     $shiftDisplay = '-';
                     if ($shiftCodeUpper !== 'L' && isset($shiftMap[$shiftCodeUpper])) {
@@ -2580,11 +2705,37 @@ class PresensiController extends Controller
                         $shiftDisplay = 'Libur';
                     }
 
-                    $pengajuanLembur = null;
-                    if ($presensiPulang && in_array($presensiPulang->status, ['lembur', 'lembur_pending'])) {
-                        $pengajuanLembur = \App\Models\PengajuanLembur::where('jadwal_karyawan_id', $jadwal->id)
-                            ->where('status', 'disetujui')
-                            ->first();
+                    $lemburData = [
+                        'status' => null,
+                        'jam_mulai' => null,
+                        'jam_selesai' => null
+                    ];
+
+                    if ($pengajuanLembur) {
+                        $lemburData = [
+                            'status' => $pengajuanLembur->status,
+                            'jam_mulai' => $pengajuanLembur->jam_mulai
+                                ? Carbon::parse($pengajuanLembur->jam_mulai)->format('H:i')
+                                : null,
+                            'jam_selesai' => $pengajuanLembur->jam_selesai
+                                ? Carbon::parse($pengajuanLembur->jam_selesai)->format('H:i')
+                                : null
+                        ];
+                    }
+
+                    $statusMasukText = '-';
+                    $statusPulangText = '-';
+
+                    if ($presensiMasuk) {
+                        $statusMasukText = $this->getStatusText($presensiMasuk->status);
+                    } elseif ($shiftCodeUpper === 'L') {
+                        $statusMasukText = 'Libur';
+                    }
+
+                    if ($presensiPulang) {
+                        $statusPulangText = $this->getStatusText($presensiPulang->status);
+                    } elseif ($shiftCodeUpper === 'L') {
+                        $statusPulangText = 'Libur';
                     }
 
                     $presensiData[] = [
@@ -2597,14 +2748,11 @@ class PresensiController extends Controller
                         'waktu_pulang' => ($presensiPulang && $presensiPulang->waktu)
                             ? Carbon::parse($presensiPulang->waktu)->format('H:i')
                             : '-',
-                        'status_masuk' => $presensiMasuk ? $this->getStatusText($presensiMasuk->status) : ($shiftCodeUpper === 'L' ? 'Libur' : 'Alpa'),
-                        'status_pulang' => $presensiPulang ? $this->getStatusText($presensiPulang->status) : ($shiftCodeUpper === 'L' ? 'Libur' : 'Alpa'),
+                        'status_masuk' => $statusMasukText,
+                        'status_pulang' => $statusPulangText,
                         'keterangan_masuk' => $presensiMasuk->keterangan ?? '-',
                         'keterangan_pulang' => $presensiPulang->keterangan ?? '-',
-                        'pengajuan_lembur' => $pengajuanLembur ? [
-                            'jam_mulai' => Carbon::parse($pengajuanLembur->jam_mulai)->format('H:i'),
-                            'jam_selesai' => Carbon::parse($pengajuanLembur->jam_selesai)->format('H:i')
-                        ] : null
+                        'pengajuan_lembur' => $lemburData
                     ];
                 }
 
@@ -2635,6 +2783,8 @@ class PresensiController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            Log::error('Get rekap per karyawan error: ' . $e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memuat data: ' . $e->getMessage()

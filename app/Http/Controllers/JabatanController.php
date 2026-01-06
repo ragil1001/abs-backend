@@ -38,7 +38,9 @@ class JabatanController extends Controller
         ]);
     }
 
-    
+    /**
+     * Get all jabatan (untuk dropdown, tanpa pagination)
+     */
     public function getAll()
     {
         $jabatans = Jabatan::orderBy('nama', 'asc')->get(['id', 'nama']);
@@ -169,7 +171,7 @@ class JabatanController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            
+            // \Log::error('Export error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,

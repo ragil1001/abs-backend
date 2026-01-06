@@ -21,13 +21,13 @@ class JadwalKaryawan extends Model
         'keterangan'
     ];
 
+    // CRITICAL FIX: Remove date casting - let database handle it as plain date
+    // No $casts for tanggal!
     
-    
-    
-    
-    
+    // Remove $dates array completely to prevent Carbon from converting
+    // protected $dates = [];
 
-    
+    // ========== RELATIONSHIPS ==========
     
     public function karyawanProject()
     {
@@ -58,7 +58,7 @@ class JadwalKaryawan extends Model
         );
     }
 
-    
+    // ========== SCOPES ==========
     
     public function scopeByProject($query, $projectId)
     {
@@ -86,7 +86,7 @@ class JadwalKaryawan extends Model
 
     public function scopeBetweenDates($query, $startDate, $endDate)
     {
-        
+        // Use simple where instead of whereDate to avoid timezone conversion
         return $query->where('tanggal', '>=', $startDate)
                      ->where('tanggal', '<=', $endDate);
     }
@@ -111,7 +111,7 @@ class JadwalKaryawan extends Model
         return $query->where('status', 'absent');
     }
 
-    
+    // ========== ACCESSORS ==========
     
     public function getStatusTextAttribute()
     {
@@ -130,7 +130,7 @@ class JadwalKaryawan extends Model
 
     public function getTanggalFormattedAttribute()
     {
-        
+        // tanggal is now a plain string in Y-m-d format
         $date = \DateTime::createFromFormat('Y-m-d', $this->tanggal);
         return $date ? $date->format('d/m/Y') : $this->tanggal;
     }
@@ -142,14 +142,14 @@ class JadwalKaryawan extends Model
         return $date ? $days[$date->format('w')] : '-';
     }
 
-    
+    // ========== STATIC METHODS ==========
     
     public static function bulkInsertJadwal($karyawanProjectId, $periodStart, $shifts)
     {
         $insertData = [];
         
         for ($index = 0; $index < count($shifts); $index++) {
-            
+            // Calculate date without Carbon
             $date = new \DateTime($periodStart, new \DateTimeZone('UTC'));
             $date->modify("+{$index} days");
             $tanggalString = $date->format('Y-m-d');
@@ -167,13 +167,13 @@ class JadwalKaryawan extends Model
             ];
         }
         
-        
+        // Use DB::table to avoid Eloquent date casting
         return \DB::table('jadwal_karyawans')->insert($insertData);
     }
 
     public static function updateOrCreateJadwal($karyawanProjectId, $tanggal, $shiftCode)
     {
-        
+        // Use plain string date
         $bulan = substr($tanggal, 0, 7);
         
         return \DB::table('jadwal_karyawans')->updateOrInsert(
@@ -223,20 +223,24 @@ class JadwalKaryawan extends Model
         return in_array(strtoupper($shiftCode), $validCodes);
     }
 
-    
+    /**
+     * Check apakah jadwal ini hasil tukar shift
+     */
     public function isDitukar()
     {
         return $this->keterangan && str_contains($this->keterangan, 'Ditukar dengan');
     }
 
-    
+    /**
+     * Get info tukar shift jika ada
+     */
     public function getTukarShiftInfo()
     {
         if (!$this->isDitukar()) {
             return null;
         }
 
-        
+        // Extract ID tukar shift dari keterangan
         preg_match('/ID Tukar: (\d+)/', $this->keterangan, $matches);
         $tukarShiftId = $matches[1] ?? null;
 

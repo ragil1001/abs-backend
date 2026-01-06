@@ -1,6 +1,6 @@
 <?php
-
-
+// app/Console/Commands/PresensiReminderNotification.php
+// ✅ COMPLETE VERSION: Using MINUTES with Smart Cache
 
 namespace App\Console\Commands;
 
@@ -20,8 +20,8 @@ class PresensiReminderNotification extends Command
 
     protected $notificationService;
 
-    
-    private const NOTIFICATION_WINDOW_MINUTES = 1;
+    // ✅ CHANGED: 2 MINUTES window
+    private const NOTIFICATION_WINDOW_MINUTES = 3;
 
     public function __construct(NotificationService $notificationService)
     {
@@ -36,7 +36,7 @@ class PresensiReminderNotification extends Command
     $now = Carbon::now();
     $today = Carbon::today();
     
-    
+    // $this->info("⏰ Waktu server: {$now->format('Y-m-d H:i:s')}");
 
     $yesterday = Carbon::yesterday();
     
@@ -49,7 +49,7 @@ class PresensiReminderNotification extends Command
         ->get();
 
     if ($jadwals->isEmpty()) {
-        
+        // $this->info('ℹ️ Tidak ada jadwal untuk hari ini/kemarin');
         return 0;
     }
 
@@ -59,12 +59,12 @@ class PresensiReminderNotification extends Command
         try {
             $shiftCode = strtoupper(trim($jadwal->shift_code ?? ''));
             
-            
+            // ✅ CRITICAL: Skip reminder untuk hari libur
             if ($shiftCode === 'L' || empty($shiftCode)) {
-                
-                
-                
-                
+                // Log::info('Skip reminder untuk hari libur', [
+                //     'jadwal_id' => $jadwal->id,
+                //     'tanggal' => $jadwal->tanggal
+                // ]);
                 continue;
             }
 
@@ -76,7 +76,7 @@ class PresensiReminderNotification extends Command
                 ->first();
 
             if (!$shift) {
-                
+                // Log::warning("⚠️ Shift tidak ditemukan untuk jadwal ID: {$jadwal->id}");
                 continue;
             }
 
@@ -103,52 +103,55 @@ class PresensiReminderNotification extends Command
                                       ->where('tipe', 'pulang')
                                       ->first();
 
-            
+            // REMINDER 1
             $this->checkAndSendReminder1_BukaPresensi(
                 $now, $waktuReminder1, $waktuMulaiShift, $jadwal, $shift, $project, $karyawan, $reminderSent
             );
 
-            
+            // REMINDER 2
             $this->checkAndSendReminder2_TidakPresensiMasuk(
                 $now, $waktuMulaiShift, $presensiMasuk, $jadwal, $shift, $project, $karyawan, $reminderSent
             );
 
-            
+            // REMINDER 3
             $this->checkAndSendReminder3_PresensiPulang(
                 $now, $waktuSelesaiShift, $presensiMasuk, $presensiPulang, $jadwal, $shift, $project, $karyawan, $reminderSent
             );
 
-            
+            // REMINDER 4
             $this->checkAndSendReminder4_TidakPresensiPulang(
                 $now, $waktuSelesaiShift, $presensiMasuk, $presensiPulang, $jadwal, $shift, $project, $karyawan, $reminderSent
             );
 
-            
+            // REMINDER 5
             $this->checkAndSendReminder5_LemburBelumKonfirmasi(
                 $now, $waktuSelesaiShift, $presensiMasuk, $presensiPulang, $jadwal, $shift, $project, $karyawan, $reminderSent
             );
 
         } catch (\Exception $e) {
-            throw $e;
+            Log::error("❌ Error processing jadwal ID {$jadwal->id}: " . $e->getMessage());
         }
     }
 
-    
-    
-    
-    
-    
-    
+    // $this->newLine();
+    // $this->info("========================================");
+    // $this->info("✅ Reminder notification selesai");
+    // $this->info("========================================");
+    // $this->info("📤 Total reminder dikirim: {$reminderSent}");
+    // $this->info("========================================");
 
-    
-    
-    
-    
+    // Log::info('✅ Presensi reminder notification selesai', [
+    //     'reminders_sent' => $reminderSent,
+    //     'timestamp' => $now->format('Y-m-d H:i:s')
+    // ]);
 
     return 0;
 }
 
-    
+    /**
+     * ✅ Check if within reminder window for Reminder 1
+     * Window = dari waktu_buka_presensi sampai waktu_mulai_shift + buffer
+     */
     private function isWithinReminderWindow($now, $targetTime)
     {
         $windowStart = $targetTime->copy()->subMinutes(self::NOTIFICATION_WINDOW_MINUTES);
@@ -156,32 +159,38 @@ class PresensiReminderNotification extends Command
         return $now->between($windowStart, $windowEnd);
     }
 
-    
+    /**
+     * ✅ Check if within standard window (±2 minutes)
+     */
     private function isWithinWindow($now, $targetTime)
     {
         $diffMinutes = abs($now->diffInMinutes($targetTime));
         return $diffMinutes <= self::NOTIFICATION_WINDOW_MINUTES;
     }
 
-    
+    /**
+     * ✅ SMART CACHE: Only cache if successfully sent
+     */
     private function checkNotificationSuccessfullySent($jadwalId, $karyawanId, $reminderType)
     {
         $cacheKey = "reminder_success_{$jadwalId}_{$karyawanId}_{$reminderType}";
         
         if (Cache::has($cacheKey)) {
-            
-            
-            
-            
-            
-            
+            // Log::info("⏭️ Reminder already sent successfully", [
+            //     'jadwal_id' => $jadwalId,
+            //     'karyawan_id' => $karyawanId,
+            //     'reminder_type' => $reminderType,
+            //     'sent_at' => Cache::get($cacheKey)
+            // ]);
             return true;
         }
         
         return false;
     }
 
-    
+    /**
+     * ✅ Mark notification as successfully sent (cache sampai akhir hari)
+     */
     private function markNotificationSent($jadwalId, $karyawanId, $reminderType)
     {
         $cacheKey = "reminder_success_{$jadwalId}_{$karyawanId}_{$reminderType}";
@@ -189,14 +198,16 @@ class PresensiReminderNotification extends Command
         
         Cache::put($cacheKey, Carbon::now()->format('H:i:s'), $expiresAt);
         
-        
-        
-        
-        
-        
+        // Log::info("✅ Marked notification as sent", [
+        //     'jadwal_id' => $jadwalId,
+        //     'karyawan_id' => $karyawanId,
+        //     'reminder_type' => $reminderType
+        // ]);
     }
 
-    
+    /**
+    * REMINDER 1: H-30 menit sebelum waktu mulai shift
+    */
     private function checkAndSendReminder1_BukaPresensi(
     $now, $waktuReminder1, $waktuMulaiShift, $jadwal, $shift, $project, $karyawan, &$reminderSent
     ) {
@@ -205,11 +216,11 @@ class PresensiReminderNotification extends Command
                                  ->first();
         
         if ($presensiMasuk) {
-            
-            
-            
-            
-            
+            // Log::debug('Skip Reminder 1: Sudah presensi masuk', [
+            //     'jadwal_id' => $jadwal->id,
+            //     'karyawan' => $karyawan->nama,
+            //     'status' => $presensiMasuk->status
+            // ]);
             return;
         }
     
@@ -240,13 +251,15 @@ class PresensiReminderNotification extends Command
         if ($success) {
             $this->markNotificationSent($jadwal->id, $karyawan->id, 'reminder_1');
             $reminderSent++;
-            
+            // $this->info("✅ Reminder 1 (H-30) dikirim ke: {$karyawan->nama}");
         } else {
             $this->warn("⚠️ Reminder 1 gagal ke: {$karyawan->nama} (retry next run)");
         }
     }
 
-    
+    /**
+     * REMINDER 2: H+30 menit setelah shift dimulai
+     */
     private function checkAndSendReminder2_TidakPresensiMasuk(
         $now, $waktuMulaiShift, $presensiMasuk, $jadwal, $shift, $project, $karyawan, &$reminderSent
     ) {
@@ -291,7 +304,9 @@ class PresensiReminderNotification extends Command
         }
     }
 
-    
+    /**
+     * REMINDER 3: Shift berakhir
+     */
     private function checkAndSendReminder3_PresensiPulang(
         $now, $waktuSelesaiShift, $presensiMasuk, $presensiPulang, $jadwal, $shift, $project, $karyawan, &$reminderSent
     ) {
@@ -338,7 +353,9 @@ class PresensiReminderNotification extends Command
         }
     }
 
-    
+    /**
+     * REMINDER 4: H+30 menit setelah shift berakhir
+     */
     private function checkAndSendReminder4_TidakPresensiPulang(
         $now, $waktuSelesaiShift, $presensiMasuk, $presensiPulang, $jadwal, $shift, $project, $karyawan, &$reminderSent
     ) {
@@ -387,7 +404,9 @@ class PresensiReminderNotification extends Command
         }
     }
 
-    
+    /**
+     * REMINDER 5: H+3 jam setelah shift berakhir
+     */
     private function checkAndSendReminder5_LemburBelumKonfirmasi(
         $now, $waktuSelesaiShift, $presensiMasuk, $presensiPulang, $jadwal, $shift, $project, $karyawan, &$reminderSent
     ) {

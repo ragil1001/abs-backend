@@ -1,5 +1,5 @@
 <?php
-
+// app/Models/KaryawanProject.php
 
 namespace App\Models;
 
@@ -32,7 +32,7 @@ class KaryawanProject extends Model
         'updated_at'
     ];
 
-    
+    // Relationships
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
@@ -43,7 +43,7 @@ class KaryawanProject extends Model
         return $this->belongsTo(Project::class);
     }
 
-    
+    // Scopes
     public function scopeAktif($query)
     {
         return $query->where('status', 'aktif');
@@ -64,7 +64,7 @@ class KaryawanProject extends Model
         return $query->where('karyawan_id', $karyawanId);
     }
 
-    
+    // Accessors
     public function getIsAktifAttribute()
     {
         return $this->status === 'aktif';
@@ -95,7 +95,7 @@ class KaryawanProject extends Model
         return trim($text) ?: '0 hari';
     }
 
-    
+    // Static methods
     public static function getKaryawanAktifByProject($projectId)
     {
         return self::with(['karyawan.divisi', 'karyawan.jabatan'])
@@ -119,7 +119,7 @@ class KaryawanProject extends Model
                    ->exists();
     }
 
-    
+    // Instance methods
     public function nonaktifkan($tanggalSelesai, $keterangan = null)
     {
         $this->update([
@@ -131,7 +131,7 @@ class KaryawanProject extends Model
 
     public function aktifkanKembali()
     {
-        
+        // Cek apakah karyawan sudah aktif di project lain
         $hasActiveProject = self::checkKaryawanHasActiveProject($this->karyawan_id);
         
         if ($hasActiveProject) {
@@ -145,12 +145,12 @@ class KaryawanProject extends Model
         ]);
     }
 
-    
+    // Boot method
     protected static function boot()
     {
         parent::boot();
 
-        
+        // Validasi sebelum create/update untuk memastikan 1 karyawan hanya aktif di 1 project
         static::saving(function ($karyawanProject) {
             if ($karyawanProject->status === 'aktif') {
                 $exists = self::where('karyawan_id', $karyawanProject->karyawan_id)

@@ -1,5 +1,5 @@
 <?php
-
+// app/Imports/KaryawanProjectImport.php
 
 namespace App\Imports;
 
@@ -25,13 +25,13 @@ class KaryawanProjectImport implements ToModel, WithHeadingRow, WithValidation
     public function model(array $row)
     {
         try {
-            
+            // Validasi NIK
             if (empty($row['nik'])) {
                 $this->errors[] = "Baris dengan NIK kosong diabaikan";
                 return null;
             }
 
-            
+            // Cari karyawan berdasarkan NIK
             $karyawan = Karyawan::where('nik', $row['nik'])->first();
 
             if (!$karyawan) {
@@ -39,7 +39,7 @@ class KaryawanProjectImport implements ToModel, WithHeadingRow, WithValidation
                 return null;
             }
 
-            
+            // Validasi divisi (opsional, hanya untuk konfirmasi)
             if (!empty($row['divisi'])) {
                 $divisi = Divisi::where('nama', $row['divisi'])->first();
                 if (!$divisi || $divisi->id != $karyawan->divisi_id) {
@@ -47,7 +47,7 @@ class KaryawanProjectImport implements ToModel, WithHeadingRow, WithValidation
                 }
             }
 
-            
+            // Validasi jabatan (opsional, hanya untuk konfirmasi)
             if (!empty($row['jabatan'])) {
                 $jabatan = Jabatan::where('nama', $row['jabatan'])->first();
                 if (!$jabatan || $jabatan->id != $karyawan->jabatan_id) {
@@ -55,7 +55,7 @@ class KaryawanProjectImport implements ToModel, WithHeadingRow, WithValidation
                 }
             }
 
-            
+            // Cek apakah karyawan sudah aktif di project lain
             $hasActiveProject = KaryawanProject::where('karyawan_id', $karyawan->id)
                                                ->where('status', 'aktif')
                                                ->exists();
@@ -69,7 +69,7 @@ class KaryawanProjectImport implements ToModel, WithHeadingRow, WithValidation
                 return null;
             }
 
-            
+            // Cek apakah sudah pernah di-assign ke project ini
             $existing = KaryawanProject::where('karyawan_id', $karyawan->id)
                                        ->where('project_id', $this->projectId)
                                        ->first();
@@ -79,14 +79,14 @@ class KaryawanProjectImport implements ToModel, WithHeadingRow, WithValidation
                     $this->errors[] = "NIK {$row['nik']} ({$karyawan->nama}) sudah aktif di project ini";
                     return null;
                 } else {
-                    
+                    // Reaktivasi
                     $existing->aktifkanKembali();
                     $this->successCount++;
-                    return null; 
+                    return null; // Return null karena update, bukan create
                 }
             }
 
-            
+            // Create new assignment
             $this->successCount++;
             
             return new KaryawanProject([
@@ -107,9 +107,9 @@ class KaryawanProjectImport implements ToModel, WithHeadingRow, WithValidation
     {
         return [
             'nik' => 'required|string',
-            'nama' => 'nullable|string', 
-            'divisi' => 'nullable|string', 
-            'jabatan' => 'nullable|string', 
+            'nama' => 'nullable|string', // Opsional, hanya untuk konfirmasi
+            'divisi' => 'nullable|string', // Opsional, hanya untuk konfirmasi
+            'jabatan' => 'nullable|string', // Opsional, hanya untuk konfirmasi
         ];
     }
 
